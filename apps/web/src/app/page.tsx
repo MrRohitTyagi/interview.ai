@@ -249,7 +249,7 @@ function SampleSessionDemo({ open }: { open: boolean }) {
         <p className="min-h-[3.4em] font-serif text-lg text-balance">
           {demoPhase === "speaking" ? displayText || " " : currentQuestion}
         </p>
-        <div className="flex min-h-[4.5rem] flex-1 flex-col justify-center gap-1 rounded-md border border-border bg-card px-4 py-3">
+        <div className="flex min-h-18 flex-1 flex-col justify-center gap-1 rounded-md border border-border bg-card px-4 py-3">
           <span className="font-mono text-[0.62rem] tracking-wider text-muted-foreground uppercase">
             Your answer
           </span>

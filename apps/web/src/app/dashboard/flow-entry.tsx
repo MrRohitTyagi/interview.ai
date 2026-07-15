@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowRight, Mic, Target } from "lucide-react";
+import { ArrowRight, Mic, Sheet } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 const ENTRIES = [
   {
     href: "/analyze",
-    icon: Target,
+    icon: Sheet,
     // chart-1/chart-2 are the same accent family used across score charts
     // elsewhere (report gauges, avg-score bars) — reused here just to tell
     // the two peer entries apart, not a second brand color.
