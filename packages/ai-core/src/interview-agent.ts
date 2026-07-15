@@ -40,7 +40,10 @@ const NATURAL_TONE_GUIDE =
   "- Match your question's depth to the topic's stated difficulty — easy topics should read " +
   "like a warm-up, hard topics should genuinely push.\n" +
   "- This will likely be read aloud by text-to-speech, so write it exactly as a person would " +
-  "say it out loud — no bullet points, numbered lists, or markdown.";
+  "say it out loud — no bullet points, numbered lists, or markdown.\n" +
+  "- You know the candidate's first name (given below). Use it occasionally where a real " +
+  "interviewer naturally would — acknowledging a strong answer, redirecting gently, or the " +
+  "closing remark — never in every turn or mid-question, which would sound robotic.";
 
 const PERSONA_BY_TYPE: Record<InterviewType, string> = {
   technical:
@@ -109,6 +112,7 @@ export async function processTurn(params: {
   isLastTopic: boolean;
   interviewType: InterviewType;
   customInstructions?: string | null;
+  candidateName: string;
 }): Promise<ConversationTurn> {
   const historyBlock = params.conversationHistory
     .map((turn, i) => `Q${i + 1}: ${turn.question}\nA${i + 1}: ${turn.answer}`)
@@ -160,6 +164,7 @@ export async function processTurn(params: {
       "time — not a placeholder, not a generic one-liner.\n\n" +
       "Never repeat a question already asked in this conversation.",
     prompt:
+      `Candidate's first name: ${params.candidateName}\n\n` +
       `Candidate profile:\n${JSON.stringify(params.resume, null, 2)}\n\n` +
       (params.jd ? `Job description:\n${JSON.stringify(params.jd, null, 2)}\n\n` : "") +
       `Current topic: "${params.currentTopic.topic}" (${params.currentTopic.difficulty}) — ` +

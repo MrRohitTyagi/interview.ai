@@ -95,6 +95,21 @@ function topicCountForDuration(durationMinutes: number): number {
   return Math.min(8, Math.max(4, Math.round(durationMinutes / 4)));
 }
 
+// A handful of concretely different shapes for the opening line — without
+// this, the model reliably converges on one "walk me through your
+// background" phrasing across sessions since that's the single most
+// obvious way to satisfy a generic "warm invitation" instruction. Naming
+// several genuinely different real-interviewer openers and asking the
+// model to pick (or invent a comparable one) is what actually produces
+// variety turn to turn, not just telling it to "vary the phrasing."
+const OPENER_STYLES = [
+  "leading with their most recent role or company by name",
+  "leading with a specific standout project or achievement from their resume",
+  "a brief self-intro from the interviewer followed by an open invitation to introduce themselves",
+  "a direct, curious question about what they're most proud of building",
+  "referencing something specific in the job description they're interviewing for and asking how their background connects to it",
+];
+
 export async function generateInterviewPlan(params: {
   resume: ResumeAnalysis;
   jd: JDAnalysis | null;
@@ -103,8 +118,10 @@ export async function generateInterviewPlan(params: {
   durationMinutes: number;
   interviewType: InterviewType;
   customInstructions?: string | null;
+  candidateName: string;
 }): Promise<InterviewPlan> {
   const topicCount = topicCountForDuration(params.durationMinutes);
+  const openerStyle = OPENER_STYLES[Math.floor(Math.random() * OPENER_STYLES.length)];
 
   return extractStructured({
     model: ANALYSIS_MODEL,
@@ -135,15 +152,17 @@ export async function generateInterviewPlan(params: {
     prompt:
       `Plan a ${params.durationMinutes}-minute ${params.difficulty}-difficulty interview with ` +
       `exactly ${topicCount} topics, plus an opening question, using the record_interview_plan tool.\n\n` +
+      `Candidate's first name: ${params.candidateName}\n\n` +
       `Candidate profile:\n${JSON.stringify(params.resume, null, 2)}\n\n` +
       (params.jd ? `Job description:\n${JSON.stringify(params.jd, null, 2)}\n\n` : "") +
       (params.gap ? `Gap analysis:\n${JSON.stringify(params.gap, null, 2)}\n\n` : "") +
       (params.customInstructions
         ? wrapUntrusted("candidate_instructions", params.customInstructions) + "\n\n"
         : "") +
-      `The opening question should be a short, casual, warm invitation for the candidate to walk ` +
-      `through their background — one or two sentences, like a friendly senior interviewer ` +
-      `greeting someone on a call, not a technical question yet and not a stiff, formal script.`,
+      `The opening question is one or two short, casual, spoken sentences — greet the candidate ` +
+      `by their first name, and write it ${openerStyle}. It must reference something concrete and ` +
+      `specific from THIS candidate's actual resume above (a real project, company, or skill name) ` +
+      `— never a generic line that could apply to any candidate, and not a technical question yet.`,
     toolName: "record_interview_plan",
     toolDescription: "Records the planned topic sequence and opening question for the interview.",
     inputSchema: PLAN_TOOL_SCHEMA,

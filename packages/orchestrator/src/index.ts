@@ -14,6 +14,7 @@ import {
   jobDescriptions,
   questions,
   resumes,
+  users,
 } from "@ai-interviewer/db";
 import { asc, eq, inArray } from "drizzle-orm";
 
@@ -111,17 +112,22 @@ export async function processInterviewTurn(
     }
   }
 
-  // None of these three depend on each other — only on fields already
-  // resolved above — so they run concurrently instead of stacking three
+  // None of these four depend on each other — only on fields already
+  // resolved above — so they run concurrently instead of stacking four
   // sequential round trips.
-  const [[resume], jdRows, priorQuestions] = await Promise.all([
+  const [[resume], jdRows, priorQuestions, [candidate]] = await Promise.all([
     db.select().from(resumes).where(eq(resumes.id, interview.resumeId)).limit(1),
     interview.jdId
       ? db.select().from(jobDescriptions).where(eq(jobDescriptions.id, interview.jdId)).limit(1)
       : Promise.resolve([]),
     db.select().from(questions).where(eq(questions.interviewId, interviewId)).orderBy(asc(questions.order)),
+    db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1),
   ]);
   const jd = jdRows[0] ?? null;
+  // First name only — "thanks so much, Priya Sharma Reddy" reads like a
+  // form letter; a real interviewer uses the name they'd actually say out
+  // loud.
+  const candidateName = candidate?.name?.split(" ")[0] ?? "there";
 
   // Was one DB round trip per prior question (N+1) — batched into one query
   // since this only grows as the interview goes on.
@@ -156,6 +162,7 @@ export async function processInterviewTurn(
     isLastTopic,
     interviewType: interview.type as InterviewType,
     customInstructions: interview.customInstructions,
+    candidateName,
   });
 
   let action = turn.action;

@@ -74,6 +74,10 @@ export async function POST(req: Request) {
     durationMinutes: parsed.data.durationMinutes,
     interviewType: parsed.data.interviewType,
     customInstructions: parsed.data.customInstructions,
+    // First name only — "walk me through your background, Priya Sharma
+    // Reddy" reads like a form letter; a real interviewer uses the name
+    // they'd actually say out loud.
+    candidateName: session.user.name?.split(" ")[0] ?? "there",
   });
 
   const [interview] = await db

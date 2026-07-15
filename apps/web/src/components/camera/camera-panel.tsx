@@ -79,6 +79,15 @@ export function CameraPanel({
   const rafRef = useRef<number>(0);
   const lastDetectRef = useRef(0);
   const historyRef = useRef<number[]>([]);
+  // getUserMedia and the face-landmarker load are both async and can resolve
+  // after the component has already unmounted (e.g. the candidate navigates
+  // away while the camera prompt or the multi-MB model download is still in
+  // flight). Without this guard, a stream obtained post-unmount never gets
+  // assigned to anything the cleanup effect stops, and a post-unmount
+  // requestAnimationFrame loop would just keep rescheduling itself forever —
+  // together, exactly what leaves the camera indicator on after leaving the
+  // interview page.
+  const mountedRef = useRef(true);
 
   function processResult(result: FaceLandmarkerResult) {
     const face = result.faceLandmarks[0];
@@ -120,19 +129,31 @@ export function CameraPanel({
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 320, height: 240, facingMode: "user" },
       });
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       const video = videoRef.current;
       if (!video) {
         stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
         return;
       }
       video.srcObject = stream;
       await video.play();
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        return;
+      }
       setStatus("active");
 
       getFaceLandmarker()
         .then((landmarker) => {
+          if (!mountedRef.current) return;
           function loop() {
+            if (!mountedRef.current) return;
             const v = videoRef.current;
             if (v && v.readyState >= 2) {
               const now = performance.now();
@@ -148,10 +169,10 @@ export function CameraPanel({
         .catch(() => {
           // Camera preview still works without the ML model — degrade
           // gracefully to "just a mirror" rather than losing the feature.
-          setModelReady(false);
+          if (mountedRef.current) setModelReady(false);
         });
     } catch {
-      setStatus("denied");
+      if (mountedRef.current) setStatus("denied");
     }
   }
 
@@ -184,8 +205,10 @@ export function CameraPanel({
 
   useEffect(() => {
     return () => {
+      mountedRef.current = false;
       cancelAnimationFrame(rafRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     };
   }, []);
 
