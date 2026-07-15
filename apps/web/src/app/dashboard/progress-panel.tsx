@@ -19,12 +19,17 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+import { ScoreGauge } from "@/components/studio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 
 import { DeleteInterviewButton } from "./delete-interview-button";
 import { EndInterviewButton } from "./end-interview-button";
+
+// Tonal steps of the one amber accent, not a rainbow palette — matches the
+// chart-1..chart-5 tokens already reserved for exactly this (DESIGN.md
+// "The One Signal Rule").
+const TYPE_CHART_CLASSES = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5"];
 
 type RecentInterview = {
   id: string;
@@ -56,33 +61,72 @@ function formatRelativeTime(date: Date): string {
   return `${Math.floor(diffDays / 30)}mo ago`;
 }
 
-function CountStat({ icon: Icon, label, value }: { icon: typeof ListChecks; label: string; value: number }) {
+// One shared tile shell so all four stats — two raw counts, two gauges —
+// read as the same instrument-panel control rather than four ad hoc
+// layouts. Fixed min-height keeps the row aligned regardless of which
+// content (a number vs. a 72px gauge) each tile ends up holding.
+function StatTile({
+  icon: Icon,
+  label,
+  index,
+  children,
+}: {
+  icon: typeof ListChecks;
+  label: string;
+  index: number;
+  children: React.ReactNode;
+}) {
+  const reduceMotion = useReducedMotion();
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Icon className="size-3.5" />
+    <motion.div
+      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.6 }}
+      transition={{ duration: 0.35, delay: index * 0.05 }}
+      className="studio-panel flex min-h-[9.5rem] flex-col items-center justify-center gap-2 rounded-md px-3 py-4 text-center"
+    >
+      <span className="flex items-center gap-1.5 font-mono text-[0.62rem] tracking-[0.08em] text-muted-foreground uppercase">
+        <Icon className="size-3" />
         {label}
       </span>
-      <span className="font-mono text-2xl font-semibold tabular-nums">{value}</span>
-    </div>
+      {children}
+    </motion.div>
   );
 }
 
-// Same visual as the per-answer technical/communication bars on the report
-// page (report-view.tsx) — a dashboard average is the same kind of number,
-// so it earns the same treatment instead of a new one invented just for
-// this row.
-function ScoreStat({ icon: Icon, label, value }: { icon: typeof Target; label: string; value: number | null }) {
+// The proportional makeup of practiced interview types — a set of loose
+// badges doesn't communicate mix, a stacked bar does. Each segment gets its
+// own tonal amber step (see TYPE_CHART_CLASSES) so five types stay visually
+// distinct without introducing a second accent color.
+function TypeBreakdown({ typeCounts }: { typeCounts: { type: string; count: number }[] }) {
+  const reduceMotion = useReducedMotion();
+  const total = typeCounts.reduce((sum, t) => sum + t.count, 0);
+  if (total === 0) return null;
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <Icon className="size-3.5" />
-          {label}
-        </span>
-        <span className="font-mono font-medium text-foreground">{value ?? "—"}</span>
+    <div className="flex flex-col gap-2.5">
+      <div className="flex h-2 w-full overflow-hidden rounded-full bg-secondary">
+        {typeCounts.map((t, i) => (
+          <motion.div
+            key={t.type}
+            className={TYPE_CHART_CLASSES[i % TYPE_CHART_CLASSES.length]}
+            initial={reduceMotion ? false : { width: 0 }}
+            animate={{ width: `${(t.count / total) * 100}%` }}
+            transition={{ duration: 0.6, delay: 0.1 + i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+          />
+        ))}
       </div>
-      <Progress value={value ?? 0} className="h-1" />
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+        {typeCounts.map((t, i) => (
+          <span
+            key={t.type}
+            className="flex items-center gap-1.5 font-mono text-[0.62rem] tracking-wide text-muted-foreground uppercase"
+          >
+            <span className={`size-1.5 rounded-full ${TYPE_CHART_CLASSES[i % TYPE_CHART_CLASSES.length]}`} />
+            {TYPE_LABELS[t.type] ?? t.type} · {t.count}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -244,22 +288,31 @@ export function ProgressPanel({
           <TrendingUp className="size-3.5" />
           Your progress
         </span>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
-          <CountStat icon={ListChecks} label="Total attempts" value={total} />
-          <CountStat icon={CheckCircle2} label="Finished" value={completed} />
-          <ScoreStat icon={Target} label="Avg technical" value={avgTechnical} />
-          <ScoreStat icon={MessagesSquare} label="Avg communication" value={avgCommunication} />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatTile icon={ListChecks} label="Total attempts" index={0}>
+            <span className="font-mono text-3xl font-semibold tabular-nums">{total}</span>
+          </StatTile>
+          <StatTile icon={CheckCircle2} label="Finished" index={1}>
+            <span className="font-mono text-3xl font-semibold tabular-nums">{completed}</span>
+            {total > 0 && (
+              <span className="font-mono text-[0.62rem] text-muted-foreground">
+                {Math.round((completed / total) * 100)}% completion
+              </span>
+            )}
+          </StatTile>
+          <StatTile icon={Target} label="Avg technical" index={2}>
+            <ScoreGauge value={avgTechnical} size="sm" />
+          </StatTile>
+          <StatTile icon={MessagesSquare} label="Avg communication" index={3}>
+            <ScoreGauge value={avgCommunication} size="sm" />
+          </StatTile>
         </div>
 
         {(typeCounts.length > 0 || lastPracticedAt) && (
-          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-5">
-            {typeCounts.map((t) => (
-              <Badge key={t.type} variant="secondary">
-                {t.count} {TYPE_LABELS[t.type] ?? t.type}
-              </Badge>
-            ))}
+          <div className="flex flex-col gap-3 border-t border-border pt-5">
+            <TypeBreakdown typeCounts={typeCounts} />
             {lastPracticedAt && (
-              <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1 font-mono text-[0.62rem] text-muted-foreground uppercase">
                 <Calendar className="size-3" />
                 Last practiced {formatRelativeTime(lastPracticedAt)}
               </span>

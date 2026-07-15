@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { ScoreGauge } from "@/components/studio";
 
 type StudyRoadmapItem = { topic: string; why: string; resources: string[] };
 export type ReportData = {
@@ -146,8 +147,6 @@ export function ReportView({
     report.technicalScore !== null && report.communicationScore !== null
       ? Math.round((report.technicalScore + report.communicationScore) / 2)
       : null;
-  const gaugeCircumference = 345;
-  const gaugeOffset = overall !== null ? gaugeCircumference * (1 - overall / 100) : gaugeCircumference;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-6">
@@ -169,27 +168,8 @@ export function ReportView({
             <CardDescription>{report.recommendation}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-6 sm:flex-row sm:items-center">
-            <div className="relative mx-auto size-28 shrink-0 sm:mx-0">
-              <svg width="112" height="112" viewBox="0 0 128 128" className="-rotate-90">
-                <circle cx="64" cy="64" r="55" fill="none" stroke="var(--secondary)" strokeWidth="8" />
-                <motion.circle
-                  cx="64"
-                  cy="64"
-                  r="55"
-                  fill="none"
-                  stroke="var(--primary)"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeDasharray={gaugeCircumference}
-                  initial={{ strokeDashoffset: gaugeCircumference }}
-                  animate={{ strokeDashoffset: gaugeOffset }}
-                  transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-mono text-2xl font-semibold">{overall ?? "—"}</span>
-                <span className="text-[0.65rem] text-muted-foreground">OVERALL</span>
-              </div>
+            <div className="mx-auto shrink-0 sm:mx-0">
+              <ScoreGauge value={overall} size="lg" label="Overall" />
             </div>
             <div className="flex flex-1 flex-col gap-4">
               <div>
@@ -203,7 +183,7 @@ export function ReportView({
                   style={{ transformOrigin: "left" }}
                   transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  <Progress value={report.technicalScore ?? 0} className="h-1" />
+                  <Progress value={report.technicalScore ?? 0} className="h-1.5" />
                 </motion.div>
               </div>
               <div>
@@ -217,7 +197,7 @@ export function ReportView({
                   style={{ transformOrigin: "left" }}
                   transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  <Progress value={report.communicationScore ?? 0} className="h-1" />
+                  <Progress value={report.communicationScore ?? 0} className="h-1.5" />
                 </motion.div>
               </div>
               {roadmap && <p className="text-sm text-muted-foreground">{roadmap.summary}</p>}
