@@ -1,17 +1,26 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "gloabalEnv": [
+    "DATABASE_URL",
+    "AUTH_SECRET",
+    "EMAIL_FROM",
+    "ANTHROPIC_API_KEY",
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "VOICE_TOKEN_SECRE "
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
       "env": [
-        "DATABASE_URL ",
-        " AUTH_SECRET ",
-        " EMAIL_FROM ",
-        " ANTHROPIC_API_KEY ",
-        " SUPABASE_URL ",
-        " SUPABASE_SERVICE_ROLE_KEY ",
-        " VOICE_TOKEN_SECRET "
+        "DATABASE_URL",
+        "AUTH_SECRET",
+        "EMAIL_FROM",
+        "ANTHROPIC_API_KEY",
+        "SUPABASE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "VOICE_TOKEN_SECRE "
       ]
     },
     "dev": {
