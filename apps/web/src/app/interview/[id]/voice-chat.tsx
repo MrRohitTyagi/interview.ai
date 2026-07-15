@@ -393,7 +393,7 @@ export function VoiceChat({
   // that reads as jitter at this size; the border/glow already shows who's
   // talking without moving anything.
   const cameraColumn = (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 lg:overflow-hidden">
+    <div className="flex min-h-0 max-h-[90vh] flex-1 flex-col gap-3 lg:overflow-hidden">
       <div className="min-h-0 flex-1">
         <div className={tileFrameClassName(phase === "speaking", "fill")}>
           <InterviewerAvatar active={phase === "speaking"} />
@@ -413,7 +413,7 @@ export function VoiceChat({
   // conditionally mounting this box was what made the submit button below
   // it jump around as liveTranscript appeared/disappeared.
   const answerBlock = (
-    <div className="flex min-h-[4.5rem] w-full flex-col justify-center gap-1 rounded-md border border-border bg-card px-4 py-3">
+    <div className="flex min-h-18 w-full flex-col justify-center gap-1 rounded-md border border-border bg-card px-4 py-3">
       <span className="font-mono text-[0.62rem] tracking-wider text-muted-foreground uppercase">Your answer</span>
       <p className="text-sm text-muted-foreground italic">
         {phase === "listening" && liveTranscript
@@ -612,10 +612,10 @@ export function VoiceChat({
               </div>
             )}
 
-            {transcriptRail}
           </div>
         </div>
       )}
+      {transcriptRail}
     </div>
   );
 }
