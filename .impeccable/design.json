@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-15T00:00:00.000Z",
+  "title": "Design System: interview.ai",
+  "extensions": {
+    "colorMeta": {
+      "tally-amber": {
+        "role": "primary",
+        "displayName": "Tally Amber",
+        "canonical": "oklch(0.75 0.14 60)",
+        "tonalRamp": [
+          "oklch(0.15 0.05 60)",
+          "oklch(0.27 0.08 60)",
+          "oklch(0.39 0.11 60)",
+          "oklch(0.51 0.13 60)",
+          "oklch(0.63 0.14 60)",
+          "oklch(0.75 0.14 60)",
+          "oklch(0.84 0.11 60)",
+          "oklch(0.93 0.05 60)"
+        ]
+      },
+      "studio-graphite": {
+        "role": "neutral",
+        "displayName": "Studio Graphite",
+        "canonical": "oklch(0.17 0.017 55)",
+        "tonalRamp": [
+          "oklch(0.10 0.010 55)",
+          "oklch(0.17 0.017 55)",
+          "oklch(0.225 0.020 55)",
+          "oklch(0.27 0.022 55)",
+          "oklch(0.42 0.025 55)",
+          "oklch(0.58 0.028 55)",
+          "oklch(0.75 0.020 55)",
+          "oklch(0.94 0.015 75)"
+        ]
+      },
+      "panel": { "role": "neutral", "displayName": "Panel", "canonical": "oklch(0.225 0.02 55)" },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "oklch(0.94 0.015 75)" },
+      "ink-muted": { "role": "neutral", "displayName": "Ink Muted", "canonical": "oklch(0.68 0.03 65)" },
+      "slate-panel": { "role": "neutral", "displayName": "Slate Panel", "canonical": "oklch(0.27 0.022 55)" },
+      "hairline": { "role": "neutral", "displayName": "Hairline", "canonical": "oklch(0.94 0.015 75 / 10%)" },
+      "alarm": {
+        "role": "error",
+        "displayName": "Alarm",
+        "canonical": "oklch(0.62 0.16 30)",
+        "tonalRamp": [
+          "oklch(0.18 0.06 30)",
+          "oklch(0.28 0.09 30)",
+          "oklch(0.38 0.12 30)",
+          "oklch(0.48 0.14 30)",
+          "oklch(0.55 0.15 30)",
+          "oklch(0.62 0.16 30)",
+          "oklch(0.75 0.13 30)",
+          "oklch(0.90 0.06 30)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Landing hero headlines only, serif, fluid-sized." },
+      "title": { "displayName": "Title", "purpose": "Every CardTitle in the system — dashboard stats, dialogs, report sections." },
+      "body": { "displayName": "Body", "purpose": "Default UI text, descriptions, interactive controls." },
+      "label": { "displayName": "Label", "purpose": "Mono, uppercase, tracked micro-labels — the studio's signage system: section eyebrows, live-state indicators, timestamps." },
+      "label-sm": { "displayName": "Label Small", "purpose": "Same signage voice one step down — speaker labels inside a transcript entry, tile name tags." }
+    },
+    "shadows": [
+      {
+        "name": "panel-highlight",
+        "value": "0 1px 0 0 color-mix(in srgb, var(--foreground) 4%, transparent) inset",
+        "purpose": "Resting state for every card/panel (studio-panel) — a top-lit surface, not elevation."
+      },
+      {
+        "name": "signal-glow",
+        "value": "0 0 0 1px color-mix(in srgb, var(--foreground) 8%, transparent), 0 0 24px -8px var(--primary)",
+        "purpose": "The system's one emphasis tool (studio-glow) — primary CTA, active tile, the single most important card on screen. Used sparingly."
+      },
+      {
+        "name": "tile-frame",
+        "value": "0 14px 34px -22px rgba(0,0,0,0.4)",
+        "purpose": "Separates a video-call tile from the panel behind it. The one shadow in the system that isn't purely a glow."
+      }
+    ],
+    "motion": [
+      { "name": "ease-studio", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Default easing for reveals, tile swaps, and gauge fills — a confident ease-out, never a bounce." },
+      { "name": "duration-state", "value": "150-250ms", "purpose": "Interactive state changes (hover, focus, toggle)." },
+      { "name": "duration-reveal", "value": "350-450ms", "purpose": "Content reveals (question fade-in, card entrance)." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "2xl", "value": "1536px (signal rail becomes visible)" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one high-emphasis action on a screen — Start interview, Sign in, Submit answer.",
+      "html": "<button class=\"ds-btn-primary\">Start interview</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; height: 2rem; padding: 0 0.625rem; border-radius: 0.375rem; border: 1px solid transparent; background: oklch(0.75 0.14 60); color: oklch(0.18 0.03 50); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 150ms; } .ds-btn-primary:hover { background: color-mix(in oklch, oklch(0.75 0.14 60) 80%, transparent); } .ds-btn-primary:focus-visible { outline: none; border-color: oklch(0.75 0.14 60); box-shadow: 0 0 0 3px oklch(0.75 0.14 60 / 50%); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary/dismissive action next to a primary one.",
+      "html": "<button class=\"ds-btn-outline\">Keep going</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; height: 2rem; padding: 0 0.625rem; border-radius: 0.375rem; border: 1px solid oklch(0.94 0.015 75 / 10%); background: transparent; color: oklch(0.94 0.015 75); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background-color 150ms; } .ds-btn-outline:hover { background: oklch(0.27 0.022 55); } .ds-btn-outline:focus-visible { outline: none; border-color: oklch(0.75 0.14 60); box-shadow: 0 0 0 3px oklch(0.75 0.14 60 / 50%); }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "End/cancel a session, delete a record — a confirmed, hard-stop action.",
+      "html": "<button class=\"ds-btn-destructive\">End interview</button>",
+      "css": ".ds-btn-destructive { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; height: 2rem; padding: 0 0.625rem; border-radius: 0.375rem; border: none; background: oklch(0.62 0.16 30 / 10%); color: oklch(0.62 0.16 30); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background-color 150ms; } .ds-btn-destructive:hover { background: oklch(0.62 0.16 30 / 20%); }"
+    },
+    {
+      "name": "Secondary Badge",
+      "kind": "chip",
+      "refersTo": "badge-outline",
+      "description": "Metadata tag — interview type, difficulty, count.",
+      "html": "<span class=\"ds-badge\">Technical</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; height: 1.25rem; padding: 0 0.5rem; border-radius: 9999px; border: 1px solid transparent; background: oklch(0.27 0.022 55); color: oklch(0.94 0.015 75); font-size: 0.75rem; font-weight: 500; white-space: nowrap; }"
+    },
+    {
+      "name": "Panel Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The base instrument-panel surface — flat, hairline-bordered, no shadow at rest.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Your progress</h3><p class=\"ds-card-body\">12 interviews practiced this month.</p></div>",
+      "css": ".ds-card { display: flex; flex-direction: column; gap: 1rem; padding: 1rem; border-radius: 0.75rem; background: oklch(0.225 0.02 55); box-shadow: 0 1px 0 0 rgba(255,255,255,0.04) inset; } .ds-card-title { font-family: 'Source Serif 4', Georgia, serif; font-size: 1rem; font-weight: 500; color: oklch(0.94 0.015 75); margin: 0; } .ds-card-body { font-size: 0.875rem; color: oklch(0.68 0.03 65); margin: 0; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Standard form field — email, password, code entry.",
+      "html": "<input class=\"ds-input\" type=\"email\" placeholder=\"you@example.com\" />",
+      "css": ".ds-input { height: 2rem; width: 100%; padding: 0 0.625rem; border-radius: 0.375rem; border: 1px solid oklch(0.94 0.015 75 / 16%); background: transparent; color: oklch(0.94 0.015 75); font-size: 0.875rem; outline: none; transition: border-color 150ms; } .ds-input::placeholder { color: oklch(0.68 0.03 65); } .ds-input:focus-visible { border-color: oklch(0.75 0.14 60); box-shadow: 0 0 0 3px oklch(0.75 0.14 60 / 50%); } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; background: oklch(0.27 0.022 55 / 50%); }"
+    },
+    {
+      "name": "Studio Tile",
+      "kind": "custom",
+      "refersTo": "studio-tile",
+      "description": "Signature component — the interviewer/candidate video-call tile. Active-speaker state swaps a hairline border for an amber border + signal glow.",
+      "html": "<div class=\"ds-tile ds-tile-active\"><span class=\"ds-tile-label\"><span class=\"ds-tile-dot\"></span>Interviewer</span></div>",
+      "css": ".ds-tile { position: relative; aspect-ratio: 4 / 3; width: 20rem; overflow: hidden; border-radius: 0.375rem; border: 1px solid oklch(0.94 0.015 75 / 10%); background: oklch(0.225 0.02 55); box-shadow: 0 14px 34px -22px rgba(0,0,0,0.4); transition: border-color 200ms; } .ds-tile-active { border-color: oklch(0.75 0.14 60 / 55%); box-shadow: 0 0 0 1px oklch(0.75 0.14 60); } .ds-tile-label { position: absolute; bottom: 0.5rem; left: 0.5rem; z-index: 10; display: flex; align-items: center; gap: 0.375rem; border-radius: 9999px; background: oklch(0.225 0.02 55 / 80%); backdrop-filter: blur(4px); padding: 0.25rem 0.625rem; font-size: 0.75rem; font-weight: 500; color: oklch(0.94 0.015 75); } .ds-tile-dot { width: 0.375rem; height: 0.375rem; border-radius: 9999px; background: oklch(0.75 0.14 60); animation: ds-tally-pulse 1.8s ease-in-out infinite; } @keyframes ds-tally-pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 oklch(0.75 0.14 60 / 55%); } 50% { opacity: 0.55; box-shadow: 0 0 0 6px oklch(0.75 0.14 60 / 0%); } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "On Air",
+    "overview": "interview.ai is styled as a broadcast/recording studio, not a SaaS dashboard. The candidate is stepping into a booth for a live take: a tally light indicates who's speaking, a signal chain of instrument panels carries the interview's stages, and a stage spotlight drifts quietly across the page. This is a deliberate departure from the generic AI-product template — no purple-to-blue gradient hero, no chat-bubble message UI with circular avatars, no Inter-as-default-sans, no rounded-everything card grid repeated as the answer to every layout question. Warm graphite stands in for stark near-black; one committed amber signal accent stands in for a multi-color gradient; an editorial serif carries headings instead of the safe sans-everywhere look every AI tool defaults to.\n\nThe system is built dark-first and ships dark-only today (the light theme is fully specified in code but not yet wired to a toggle) — the studio is dim, the panels are lit, and the one warm accent reads as a signal in the dark, not decoration. Depth comes from light, not elevation: surfaces stay flat and bordered at rest, and a soft ambient glow — never a drop shadow — marks the one thing on a screen that matters most.",
+    "keyCharacteristics": [
+      "One committed accent (Tally Amber) used sparingly and consistently — never as decoration",
+      "Editorial serif for headings, a clean grotesque for body, monospace for every label/timer/score — three fonts, three distinct jobs",
+      "Flat panels with a subtle inset top highlight at rest; a soft amber glow is the only elevation signal",
+      "Mono-cased, letter-spaced micro-labels function as the studio's signage system — restrained, not decorative",
+      "Ambient atmosphere (grain, vignette, drifting spotlight) runs globally at very low opacity, fully suppressed under reduced motion"
+    ],
+    "rules": [
+      { "name": "The One Signal Rule", "body": "Tally Amber is the only accent in the system. A second saturated color anywhere outside Alarm's destructive-only role is drift.", "section": "colors" },
+      { "name": "The Warm Hairline Rule", "body": "Never introduce a plain gray border. Every border and divider derives from the Ink color at low opacity.", "section": "colors" },
+      { "name": "The Three-Job Rule", "body": "Serif is for headings and titles only. Sans is for body and interactive text only. Mono is for labels, timers, and numbers only.", "section": "typography" },
+      { "name": "The No-Shadow Rule", "body": "If an element needs to read as 'above' the page, use a border and the Panel background, not a drop shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use Tally Amber as the only accent color in the system.",
+      "Do keep every neutral tinted toward the same warm hue family as the amber accent.",
+      "Do use the flat-panel-plus-glow elevation model, glow reserved for the single most important element in view.",
+      "Do reserve the mono uppercase tracked label style for the studio's signage system, consistently.",
+      "Do give the interviewer and candidate tiles identical chrome so the active-speaker swap is the only visual difference."
+    ],
+    "donts": [
+      "Don't use a purple-to-blue gradient hero, chat-bubble UI, or any other piece of the generic AI-product template.",
+      "Don't default to Inter, Space Grotesk, or another safe sans as a display font.",
+      "Don't use a border-left/border-right greater than 1px as a colored accent stripe — a recognized AI-generated-UI tell.",
+      "Don't use a drop shadow to imply elevation anywhere in the system.",
+      "Don't nest a bordered card-like box inside another Card — use a divider inside one panel instead.",
+      "Don't introduce a second saturated accent color outside Alarm's destructive-only role, even for data visualization.",
+      "Don't apply the signal glow to more than one or two elements on a single screen."
+    ]
+  }
+}

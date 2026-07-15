@@ -1,0 +1,326 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-source-serif);
+  --font-heading: var(--font-serif);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* "On air" — a broadcast/recording-studio identity: warm graphite instead
+   of near-black, one amber signal accent instead of a neon gradient, and
+   editorial serif headings instead of another SaaS sans-everywhere look.
+   Both themes are fully specified (not just dark mirrored onto :root) so a
+   theme toggle can be wired up later — next-themes is already a dependency
+   — without touching these tokens again. Today layout.tsx still forces the
+   `dark` class, matching the original "always dark" preference. */
+:root {
+  --background: oklch(0.965 0.02 80);
+  --foreground: oklch(0.22 0.03 55);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.03 55);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.03 55);
+  --primary: oklch(0.58 0.13 55);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.93 0.02 75);
+  --secondary-foreground: oklch(0.22 0.03 55);
+  --muted: oklch(0.93 0.02 75);
+  --muted-foreground: oklch(0.5 0.03 60);
+  --accent: oklch(0.93 0.02 75);
+  --accent-foreground: oklch(0.22 0.03 55);
+  --destructive: oklch(0.52 0.17 30);
+  --border: oklch(0.22 0.03 55 / 12%);
+  --input: oklch(0.22 0.03 55 / 16%);
+  --ring: oklch(0.58 0.13 55);
+  --chart-1: oklch(0.58 0.13 55);
+  --chart-2: oklch(0.62 0.12 70);
+  --chart-3: oklch(0.68 0.1 85);
+  --chart-4: oklch(0.5 0.1 45);
+  --chart-5: oklch(0.42 0.08 40);
+  --radius: 0.375rem;
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.22 0.03 55);
+  --sidebar-primary: oklch(0.58 0.13 55);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.93 0.02 75);
+  --sidebar-accent-foreground: oklch(0.22 0.03 55);
+  --sidebar-border: oklch(0.22 0.03 55 / 12%);
+  --sidebar-ring: oklch(0.58 0.13 55);
+}
+
+.dark {
+  --background: oklch(0.17 0.017 55);
+  --foreground: oklch(0.94 0.015 75);
+  --card: oklch(0.225 0.02 55);
+  --card-foreground: oklch(0.94 0.015 75);
+  --popover: oklch(0.225 0.02 55);
+  --popover-foreground: oklch(0.94 0.015 75);
+  --primary: oklch(0.75 0.14 60);
+  --primary-foreground: oklch(0.18 0.03 50);
+  --secondary: oklch(0.27 0.022 55);
+  --secondary-foreground: oklch(0.94 0.015 75);
+  --muted: oklch(0.27 0.022 55);
+  --muted-foreground: oklch(0.68 0.03 65);
+  --accent: oklch(0.27 0.022 55);
+  --accent-foreground: oklch(0.94 0.015 75);
+  --destructive: oklch(0.62 0.16 30);
+  --border: oklch(0.94 0.015 75 / 10%);
+  --input: oklch(0.94 0.015 75 / 14%);
+  --ring: oklch(0.75 0.14 60);
+  --chart-1: oklch(0.75 0.14 60);
+  --chart-2: oklch(0.7 0.13 75);
+  --chart-3: oklch(0.62 0.11 85);
+  --chart-4: oklch(0.55 0.1 45);
+  --chart-5: oklch(0.48 0.09 40);
+  --radius: 0.375rem;
+  --sidebar: oklch(0.2 0.018 55);
+  --sidebar-foreground: oklch(0.94 0.015 75);
+  --sidebar-primary: oklch(0.75 0.14 60);
+  --sidebar-primary-foreground: oklch(0.18 0.03 50);
+  --sidebar-accent: oklch(0.27 0.022 55);
+  --sidebar-accent-foreground: oklch(0.94 0.015 75);
+  --sidebar-border: oklch(0.94 0.015 75 / 10%);
+  --sidebar-ring: oklch(0.75 0.14 60);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+    color-scheme: dark;
+  }
+}
+
+@layer utilities {
+  .font-mono-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------------- atmosphere: grain, vignette, roaming spotlight ------- */
+  .studio-grain {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    z-index: 3;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+  .studio-vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    background: radial-gradient(
+      ellipse 130% 85% at 50% 0%,
+      transparent 35%,
+      color-mix(in srgb, var(--foreground) 14%, transparent) 100%
+    );
+  }
+  .studio-spotlight {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background: radial-gradient(
+      680px circle at var(--x, 50%) var(--y, 22%),
+      color-mix(in srgb, var(--primary) 9%, transparent),
+      transparent 62%
+    );
+  }
+
+  /* dust drifting through the stage light */
+  .studio-mote {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--primary);
+    opacity: 0;
+    pointer-events: none;
+    animation: studio-mote-drift linear infinite;
+  }
+  @keyframes studio-mote-drift {
+    0% {
+      opacity: 0;
+      transform: translate(0, 0);
+    }
+    12% {
+      opacity: 0.55;
+    }
+    88% {
+      opacity: 0.3;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(var(--dx), var(--dy));
+    }
+  }
+
+  /* on-air tally light */
+  .studio-tally {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary);
+    animation: studio-pulse-dot 1.8s ease-in-out infinite;
+  }
+  @keyframes studio-pulse-dot {
+    0%,
+    100% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 55%, transparent);
+    }
+    50% {
+      opacity: 0.55;
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 0%, transparent);
+    }
+  }
+
+  /* interviewer avatar blink — subtle, on its own timer */
+  .studio-avatar-blink {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: studio-avatar-blink 5.2s ease-in-out infinite;
+  }
+  @keyframes studio-avatar-blink {
+    0%,
+    92%,
+    100% {
+      transform: scaleY(1);
+    }
+    95% {
+      transform: scaleY(0.12);
+    }
+  }
+
+  /* signal-chain LED, staggered per sibling via nth-child in call sites */
+  .studio-led {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--primary);
+    opacity: 0.25;
+    animation: studio-led-chase 4.8s ease-in-out infinite;
+  }
+  @keyframes studio-led-chase {
+    0%,
+    88%,
+    100% {
+      opacity: 0.2;
+    }
+    92% {
+      opacity: 1;
+    }
+  }
+
+  /* load-in choreography */
+  .studio-rise {
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+      opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .studio-rise.is-on {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* solid instrument-panel surface — replaces the old frosted .glass */
+  .studio-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 0 0 color-mix(in srgb, var(--foreground) 4%, transparent) inset;
+  }
+
+  .studio-glow {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--foreground) 8%, transparent),
+      0 0 24px -8px var(--primary);
+  }
+
+  .accent-text {
+    color: var(--primary);
+  }
+
+  @keyframes studio-pulse-critical {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--destructive) 45%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 12px color-mix(in srgb, var(--destructive) 0%, transparent);
+    }
+  }
+  .pulse-glow {
+    animation: studio-pulse-critical 1.8s ease-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .studio-tally,
+    .studio-led,
+    .studio-mote {
+      animation: none !important;
+      opacity: 0.6 !important;
+    }
+    .studio-avatar-blink {
+      animation: none !important;
+    }
+    .studio-rise {
+      transition: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    .pulse-glow {
+      animation: none !important;
+    }
+  }
+}

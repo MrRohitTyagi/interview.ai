@@ -1,0 +1,1 @@
+ALTER TABLE "resumes" ADD COLUMN "raw_text" text NOT NULL;

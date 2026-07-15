@@ -1,0 +1,16 @@
+{
+  "name": "ai-interviewer-app",
+  "private": true,
+  "packageManager": "pnpm@11.13.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "db:generate": "pnpm --filter @ai-interviewer/db db:generate",
+    "db:migrate": "pnpm --filter @ai-interviewer/db db:migrate",
+    "db:studio": "pnpm --filter @ai-interviewer/db db:studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  }
+}
