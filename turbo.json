@@ -11,7 +11,8 @@
         "ANTHROPIC_API_KEY",
         "SUPABASE_URL",
         "SUPABASE_SERVICE_ROLE_KEY",
-        "VOICE_TOKEN_SECRE "
+        "VOICE_TOKEN_SECRE",
+        "ELEVENLABS_API_KEY"
       ]
     },
     "dev": {
