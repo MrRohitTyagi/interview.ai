@@ -1,4 +1,7 @@
-import { createHash, randomInt } from "node:crypto";
+import {
+  createHash,
+  // randomInt
+} from "node:crypto";
 
 import { db, otpCodes } from "@ai-interviewer/db";
 import { and, eq, gt, isNull } from "drizzle-orm";
@@ -11,7 +14,7 @@ function hashCode(code: string) {
 }
 
 export async function requestOtp(email: string) {
-  const code = "123456" || randomInt(0, 1_000_000).toString().padStart(6, "0"); //TODO
+  const code = "123456"; // || randomInt(0, 1_000_000).toString().padStart(6, "0"); //TODO
   const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
 
   await db.insert(otpCodes).values({
