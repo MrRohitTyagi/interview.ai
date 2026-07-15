@@ -241,7 +241,7 @@ export default function SignInPage() {
               {step === "verify" && (
                 <form className="flex flex-col gap-3" onSubmit={handleVerify}>
                   {/* TODO */}
-                  <Label htmlFor="code">6-digit code (123456 fow testing)</Label> 
+                  <Label htmlFor="code">6-digit code ( use <strong> 123456 </strong> for testing)</Label> 
                   <Input
                     id="code"
                     inputMode="numeric"
@@ -270,7 +270,7 @@ export default function SignInPage() {
               {error && <p className="text-sm text-destructive">{error}</p>}
 
               {step === "form" && (
-                <p className="text-center text-xs text-muted-foreground">
+                <p className="text-center text-sm text-muted-foreground">
                   {mode === "signin" ? (
                     <>
                       Don&apos;t have an account?{" "}
