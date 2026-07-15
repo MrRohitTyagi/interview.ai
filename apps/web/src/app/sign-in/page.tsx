@@ -240,7 +240,8 @@ export default function SignInPage() {
 
               {step === "verify" && (
                 <form className="flex flex-col gap-3" onSubmit={handleVerify}>
-                  <Label htmlFor="code">6-digit code</Label>
+                  {/* TODO */}
+                  <Label htmlFor="code">6-digit code (123456 fow testing)</Label> 
                   <Input
                     id="code"
                     inputMode="numeric"
