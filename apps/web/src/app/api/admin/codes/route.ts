@@ -40,15 +40,25 @@ export async function POST(req: Request) {
 
   const code = (parsed.data.code || generateCode()).toUpperCase();
 
-  const [created] = await db
-    .insert(redeemCodes)
-    .values({
-      code,
-      credits: parsed.data.credits,
-      maxUses: parsed.data.maxUses,
-      createdBy: session.user.id,
-    })
-    .returning();
+  try {
+    const [created] = await db
+      .insert(redeemCodes)
+      .values({
+        code,
+        credits: parsed.data.credits,
+        maxUses: parsed.data.maxUses,
+        createdBy: session.user.id,
+      })
+      .returning();
 
-  return NextResponse.json(created);
+    return NextResponse.json(created);
+  } catch (err) {
+    if (err && typeof err === "object" && "code" in err && err.code === "23505") {
+      return NextResponse.json(
+        { error: "That code already exists — try a different one." },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
 }
