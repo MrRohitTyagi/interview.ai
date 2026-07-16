@@ -357,6 +357,29 @@ export const redeemCodeUses = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Coding Attempts
+// ---------------------------------------------------------------------------
+
+export const codingAttemptStatusEnum = pgEnum("coding_attempt_status", [
+  "success", 
+  "failed", 
+  "ai_reviewed"
+]);
+
+export const codingAttempts = pgTable("coding_attempts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  questionId: text("question_id").notNull(),
+  code: text("code").notNull(),
+  status: codingAttemptStatusEnum("status").notNull(),
+  aiScore: integer("ai_score"),
+  aiFeedback: text("ai_feedback"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
 // Relations
 // ---------------------------------------------------------------------------
 
@@ -369,6 +392,11 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   jobDescriptions: many(jobDescriptions),
   interviews: many(interviews),
   creditTransactions: many(creditTransactions),
+  codingAttempts: many(codingAttempts),
+}));
+
+export const codingAttemptsRelations = relations(codingAttempts, ({ one }) => ({
+  user: one(users, { fields: [codingAttempts.userId], references: [users.id] }),
 }));
 
 export const resumesRelations = relations(resumes, ({ one, many }) => ({

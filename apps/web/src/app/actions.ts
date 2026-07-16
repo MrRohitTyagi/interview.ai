@@ -1,7 +1,39 @@
 "use server";
 
-import { db, interviews } from "@ai-interviewer/db";
+import { db, interviews, codingAttempts } from "@ai-interviewer/db";
 import { count } from "drizzle-orm";
+import { reviewCode } from "@ai-interviewer/ai-core";
+import { auth } from "@/lib/auth";
+
+export async function submitBrainstormCodeAction(questionId: string, questionTitle: string, questionDescription: string, candidateCode: string) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const review = await reviewCode(questionTitle, questionDescription, candidateCode);
+
+  await db.insert(codingAttempts).values({
+    userId: session.user.id,
+    questionId: questionId,
+    code: candidateCode,
+    status: "ai_reviewed",
+    aiScore: review.score,
+    aiFeedback: review.feedback,
+  });
+
+  return review;
+}
+
+export async function submitRunCodeAction(questionId: string, candidateCode: string, isSuccess: boolean) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  await db.insert(codingAttempts).values({
+    userId: session.user.id,
+    questionId: questionId,
+    code: candidateCode,
+    status: isSuccess ? "success" : "failed",
+  });
+}
 
 export async function getInterviewCount() {
   const result = await db.select({ value: count() }).from(interviews);

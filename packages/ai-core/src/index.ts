@@ -26,3 +26,4 @@ export {
   type AnswerEvaluation,
   type StudyRoadmapItem,
 } from "./report-generator";
+export { reviewCode, codeReviewSchema, type CodeReview } from "./coding-reviewer";
