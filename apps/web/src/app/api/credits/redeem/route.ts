@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { applyCreditDelta, db, redeemCodes, redeemCodeUses } from "@ai-interviewer/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { auth } from "@/lib/auth";
@@ -38,7 +38,6 @@ export async function POST(req: Request) {
     credits = await db.transaction(async (tx) => {
       const [redeemCode] = await tx.select().from(redeemCodes).where(eq(redeemCodes.code, codeText)).limit(1);
       if (!redeemCode) throw new Error("That code isn't valid.");
-      if (redeemCode.usedCount >= redeemCode.maxUses) throw new Error("That code has already been fully redeemed.");
 
       const [existingUse] = await tx
         .select()
@@ -47,13 +46,21 @@ export async function POST(req: Request) {
         .limit(1);
       if (existingUse) throw new Error("You've already redeemed this code.");
 
-      await tx.insert(redeemCodeUses).values({ codeId: redeemCode.id, userId });
-      await tx
+      // Atomic claim: the WHERE clause bakes the cap check into the same
+      // statement as the increment, so two different users racing the same
+      // maxUses=1 code can't both read usedCount=0 and both pass — only one
+      // UPDATE can actually match and return a row; the loser's WHERE
+      // re-evaluates against the post-commit row and fails.
+      const [claimed] = await tx
         .update(redeemCodes)
-        .set({ usedCount: redeemCode.usedCount + 1 })
-        .where(eq(redeemCodes.id, redeemCode.id));
+        .set({ usedCount: sql`${redeemCodes.usedCount} + 1` })
+        .where(and(eq(redeemCodes.id, redeemCode.id), sql`${redeemCodes.usedCount} < ${redeemCodes.maxUses}`))
+        .returning({ credits: redeemCodes.credits });
+      if (!claimed) throw new Error("That code has already been fully redeemed.");
 
-      return redeemCode.credits;
+      await tx.insert(redeemCodeUses).values({ codeId: redeemCode.id, userId });
+
+      return claimed.credits;
     });
   } catch (err) {
     return NextResponse.json(
