@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 
 import { ChangePasswordForm } from "./change-password-form";
 import { CreditHistory } from "./credit-history";
+import { ProfileSection } from "./profile-section";
 import { RedeemCodeForm } from "./redeem-code-form";
 
 export default async function ProfilePage() {
@@ -33,9 +34,12 @@ export default async function ProfilePage() {
         </Link>
       </div>
 
-      <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
+        <p className="text-muted-foreground">Your account, credits, and security.</p>
+      </div>
 
-      <div className="flex flex-col gap-4">
+      <ProfileSection delay={0.08}>
         <div className="studio-panel studio-glow flex flex-col items-center gap-1 rounded-md py-6 text-center">
           <span className="flex items-center gap-1.5 font-mono text-[0.68rem] tracking-[0.12em] text-muted-foreground uppercase">
             <Coins className="size-3.5 text-primary" />
@@ -43,12 +47,16 @@ export default async function ProfilePage() {
           </span>
           <span className="font-mono text-4xl font-semibold tabular-nums">{user?.creditBalance ?? 0}</span>
         </div>
+      </ProfileSection>
 
+      <ProfileSection delay={0.16} className="flex flex-col gap-4">
         <RedeemCodeForm />
         <CreditHistory transactions={transactions} />
-      </div>
+      </ProfileSection>
 
-      <ChangePasswordForm />
+      <ProfileSection delay={0.24}>
+        <ChangePasswordForm />
+      </ProfileSection>
     </div>
   );
 }

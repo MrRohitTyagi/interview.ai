@@ -1,4 +1,4 @@
-import { History } from "lucide-react";
+import { History, Sparkles } from "lucide-react";
 
 type Transaction = {
   id: string;
@@ -50,8 +50,9 @@ export function CreditHistory({ transactions }: { transactions: Transaction[] })
           ))}
         </div>
       ) : (
-        <div className="studio-panel flex flex-col items-center gap-1.5 rounded-md py-8 text-center">
-          <p className="text-sm text-muted-foreground">No activity yet.</p>
+        <div className="studio-panel flex flex-col items-center gap-2 rounded-md py-8 text-center">
+          <Sparkles className="size-4 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Nothing yet — your credit activity will show up here.</p>
         </div>
       )}
     </div>
