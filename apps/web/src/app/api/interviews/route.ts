@@ -12,6 +12,7 @@ import {
   CREDIT_COSTS,
   db,
   estimateInterviewCost,
+  InsufficientCreditsError,
   interviews,
   interviewStates,
   jobDescriptions,
@@ -152,7 +153,23 @@ export async function POST(req: Request) {
     followUpsOnCurrentTopic: 0,
   });
 
-  await applyCreditDelta(session.user.id, -CREDIT_COSTS.interview_plan, "interview_plan", interview.id);
+  try {
+    await applyCreditDelta(session.user.id, -CREDIT_COSTS.interview_plan, "interview_plan", interview.id);
+  } catch (err) {
+    if (err instanceof InsufficientCreditsError) {
+      // Extremely narrow race: a concurrent request drained the balance
+      // between the pre-flight check and this charge, after the interview
+      // was already fully created. The interview is real and the user
+      // already got value from it — crashing the request here would strand
+      // them with a half-created interview they can't see and a scary
+      // error, which is exactly what this product's design principles rule
+      // out. Let it through uncharged rather than fail; new interview
+      // creation is still blocked at balance <= 0 regardless.
+      console.warn(`[interviews] plan charge failed for interview ${interview.id}: ${err.message}`);
+    } else {
+      throw err;
+    }
+  }
 
   return NextResponse.json({
     id: interview.id,
