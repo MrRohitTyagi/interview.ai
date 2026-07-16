@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, users } from "@ai-interviewer/db";
+import { applyCreditDelta, db, SIGNUP_GRANT_CREDITS, users } from "@ai-interviewer/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -30,7 +30,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
+  // Grant only on the *first* verification — a user requesting a fresh OTP
+  // and re-submitting it after already being verified must not re-grant.
+  const alreadyVerified = !!user.emailVerified;
+
   await db.update(users).set({ emailVerified: new Date() }).where(eq(users.id, user.id));
+
+  if (!alreadyVerified) {
+    await applyCreditDelta(user.id, SIGNUP_GRANT_CREDITS, "signup_grant");
+  }
 
   return NextResponse.json({ ok: true });
 }
