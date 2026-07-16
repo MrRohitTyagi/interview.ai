@@ -53,7 +53,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json(created);
   } catch (err) {
-    if (err && typeof err === "object" && "code" in err && err.code === "23505") {
+    const cause = err instanceof Error ? err.cause : undefined;
+    if (cause && typeof cause === "object" && "code" in cause && cause.code === "23505") {
       return NextResponse.json(
         { error: "That code already exists — try a different one." },
         { status: 409 }
