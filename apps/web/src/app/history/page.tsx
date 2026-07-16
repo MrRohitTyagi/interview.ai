@@ -40,7 +40,7 @@ function formatRelativeTime(date: Date): string {
   return `${Math.floor(diffDays / 30)}mo ago`;
 }
 
-function StatusBadge({ r }: { r: { status: string; reportStatus: string | null; technicalScore: number | null } }) {
+function StatusBadge({ r }: { r: { status: string; reportStatus: string | null; technicalScore: number | null; communicationScore: number | null } }) {
   const isAbandoned = r.status === "abandoned";
   const isCompleted = r.status === "completed";
   const hasReport = r.reportStatus === "ready" && r.technicalScore !== null;
