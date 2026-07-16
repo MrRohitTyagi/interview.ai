@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { db, interviews, reports } from "@ai-interviewer/db";
+import { db, interviews, reports, questions, answers } from "@ai-interviewer/db";
 import { eq } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
@@ -18,5 +18,20 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
   const [report] = await db.select().from(reports).where(eq(reports.interviewId, id)).limit(1);
 
-  return <ReportView interviewId={id} initialReport={(report as ReportData | undefined) ?? null} />;
+  const allAnswers = await db
+    .select({ transcript: answers.transcript })
+    .from(answers)
+    .innerJoin(questions, eq(questions.id, answers.questionId))
+    .where(eq(questions.interviewId, id));
+
+  let fillerWordsCount = 0;
+  const fillerRegex = /\b(um|uh|like|you know|basically|literally|actually|i mean)\b/gi;
+  for (const a of allAnswers) {
+    if (a.transcript) {
+      const matches = a.transcript.match(fillerRegex);
+      if (matches) fillerWordsCount += matches.length;
+    }
+  }
+
+  return <ReportView interviewId={id} initialReport={(report as ReportData | undefined) ?? null} fillerWordsCount={fillerWordsCount} />;
 }

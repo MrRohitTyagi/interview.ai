@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { AlertTriangle, ArrowLeft, Award, BookOpen, ThumbsDown, ThumbsUp } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Award, BookOpen, Share2, ThumbsDown, ThumbsUp } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,9 +30,13 @@ const fadeUp = {
 export function ReportView({
   interviewId,
   initialReport,
+  fillerWordsCount,
+  isPublic,
 }: {
   interviewId: string;
   initialReport: ReportData | null;
+  fillerWordsCount?: number;
+  isPublic?: boolean;
 }) {
   const [report, setReport] = useState<ReportData | null>(initialReport);
   const [loading, setLoading] = useState(false);
@@ -90,13 +95,15 @@ export function ReportView({
       }
     }
 
-    void run();
+    if (!isPublic) {
+      void run();
+    }
     return () => {
       cancelled = true;
       if (pollTimer) clearInterval(pollTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isPublic, interviewId]);
 
   async function retry() {
     setLoading(true);
@@ -150,13 +157,29 @@ export function ReportView({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-6">
-      <Link
-        href="/dashboard"
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Dashboard
-      </Link>
+      {!isPublic && (
+        <div className="flex items-center justify-between">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+            Dashboard
+          </Link>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-1.5 h-8 text-xs font-medium"
+            onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}/report/${interviewId}`);
+              toast.success("Public link copied to clipboard!");
+            }}
+          >
+            <Share2 className="size-3.5" />
+            Share Report
+          </Button>
+        </div>
+      )}
 
       <motion.div {...fadeUp} transition={{ duration: 0.4 }}>
         <Card className="studio-panel studio-glow">
@@ -200,6 +223,22 @@ export function ReportView({
                   <Progress value={report.communicationScore ?? 0} className="h-1.5" />
                 </motion.div>
               </div>
+              {fillerWordsCount !== undefined && (
+                <div>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Filler Words</span>
+                    <span className="font-mono font-medium">{fillerWordsCount}</span>
+                  </div>
+                  <motion.div
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: 1 }}
+                    style={{ transformOrigin: "left" }}
+                    transition={{ duration: 0.7, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <Progress value={Math.max(0, 100 - (fillerWordsCount * 5))} className="h-1.5 [&>div]:bg-amber-500" />
+                  </motion.div>
+                </div>
+              )}
               {roadmap && <p className="text-sm text-muted-foreground">{roadmap.summary}</p>}
             </div>
           </CardContent>

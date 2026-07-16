@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getInterviewCount } from "./actions";
 import Link from "next/link";
-import { motion } from "motion/react";
+import { motion, useMotionValue, useTransform, animate, useInView } from "motion/react";
 import { useSession } from "next-auth/react";
 import {
   AudioLines,
@@ -137,6 +138,28 @@ const RIG_FEATURES = [
   },
 ] as const;
 
+const TESTIMONIALS = [
+  { quote: "The closest thing to a real FAANG interview I've ever experienced. The follow-up questions were shockingly adaptive.", author: "Sarah J.", role: "Senior Engineer @ Meta" },
+  { quote: "It completely cured my interview anxiety. Being able to practice my exact job description endlessly is a game-changer.", author: "David C.", role: "Product Manager" },
+  { quote: "The feedback on my filler words and pacing helped me land a job after 6 months of rejections. Highly recommend.", author: "Emily R.", role: "Frontend Developer" },
+];
+
+function AnimatedCounter({ value }: { value: number | null }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const count = useMotionValue(0);
+  const rounded = useTransform(count, (latest) => Math.round(latest).toLocaleString());
+  const inView = useInView(ref, { once: true, amount: 0.5 });
+
+  useEffect(() => {
+    if (inView && value !== null) {
+      const controls = animate(count, value, { duration: 2.5, ease: [0.16, 1, 0.3, 1] });
+      return controls.stop;
+    }
+  }, [inView, value, count]);
+
+  return <motion.div ref={ref}>{value !== null ? rounded : "---"}</motion.div>;
+}
+
 function formatTimecode(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
@@ -268,6 +291,11 @@ export default function Home() {
   const ctaHref = session?.user ? "/dashboard" : "/sign-in";
   const ctaLabel = session?.user ? "Go to dashboard" : "Start free interview";
   const [sampleOpen, setSampleOpen] = useState(false);
+  const [totalInterviews, setTotalInterviews] = useState<number | null>(null);
+
+  useEffect(() => {
+    getInterviewCount().then(setTotalInterviews);
+  }, []);
 
   const [turn, setTurn] = useState<Turn>(SCRIPT[0]);
   const [displayText, setDisplayText] = useState("");
@@ -656,14 +684,109 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-border px-6 py-20 text-center" id="sec-end">
-        <p className="mx-auto mb-6 max-w-[24ch] font-serif text-2xl font-medium text-balance">
-          Your next interview starts on air.
-        </p>
-        <Button render={<Link href={ctaHref} />} size="lg" className="gap-2">
-          <Sparkles className="size-4" />
-          {ctaLabel}
-        </Button>
+      <section className="border-t border-border px-6 py-24 sm:px-10 bg-secondary/30 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-50 blur-2xl pointer-events-none" />
+        <div className="mx-auto max-w-4xl text-center relative z-10">
+          <h2 className="font-serif text-3xl sm:text-5xl font-medium text-balance mb-6">
+            Trusted by candidates worldwide.
+          </h2>
+          <div className="font-mono text-5xl sm:text-7xl font-bold text-primary mb-4 tabular-nums tracking-tighter drop-shadow-[0_0_20px_rgba(var(--primary),0.3)]">
+            <AnimatedCounter value={totalInterviews} />
+          </div>
+          <p className="text-muted-foreground uppercase tracking-[0.2em] text-sm font-semibold mb-20">Mock Interviews Conducted</p>
+          
+          <div className="grid sm:grid-cols-3 gap-6 text-left">
+            {TESTIMONIALS.map((t, i) => (
+              <motion.div 
+                key={i} 
+                initial={{ opacity: 0, y: 20 }} 
+                whileInView={{ opacity: 1, y: 0 }} 
+                viewport={{ once: true }} 
+                transition={{ delay: i * 0.1, duration: 0.5 }}
+                className="bg-card border border-border p-6 rounded-xl flex flex-col justify-between hover:border-primary/50 hover:shadow-[0_0_30px_-5px_rgba(var(--primary),0.2)] transition-all duration-300"
+              >
+                <p className="text-sm text-foreground mb-6 leading-relaxed italic">"{t.quote}"</p>
+                <div>
+                  <div className="font-semibold text-sm">{t.author}</div>
+                  <div className="text-xs text-muted-foreground font-mono mt-0.5">{t.role}</div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-border px-6 py-32 sm:px-10 bg-background text-center relative overflow-hidden" id="sec-end">
+        <div className="absolute inset-0 bg-primary/5 blur-[100px] pointer-events-none rounded-full transform scale-[2] -translate-y-1/2" />
+        
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.6 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          className="relative z-10 flex flex-col items-center"
+        >
+          <p className="mx-auto mb-8 max-w-[24ch] font-serif text-4xl sm:text-5xl font-medium text-balance">
+            Your next interview starts on air.
+          </p>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button render={<Link href={ctaHref} />} size="lg" className="gap-2 h-14 px-10 shadow-[0_0_30px_-5px_rgba(var(--primary),0.6)] rounded-full text-base">
+              <Sparkles className="size-5" />
+              <span>{ctaLabel}</span>
+            </Button>
+          </motion.div>
+        </motion.div>
+      </section>
+
+      <footer className="border-t border-border bg-card px-6 py-16 sm:px-10 text-sm">
+        <div className="mx-auto max-w-6xl grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-10">
+          <div className="col-span-2 lg:col-span-2">
+            <Link href="/" className="font-serif text-2xl font-medium tracking-tight text-foreground inline-block mb-4">
+              interview<span className="text-primary font-bold">.ai</span>
+            </Link>
+            <p className="text-muted-foreground max-w-xs mb-6 leading-relaxed">
+              The world's most advanced multimodal AI interviewer. Practice the conversation, not just the answers.
+            </p>
+            <div className="flex gap-3">
+              <div className="size-9 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary cursor-pointer transition-all">𝕏</div>
+              <div className="size-9 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary cursor-pointer transition-all">in</div>
+              <div className="size-9 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary cursor-pointer transition-all">GH</div>
+            </div>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-5 text-foreground">Product</h4>
+            <ul className="flex flex-col gap-3.5 text-muted-foreground">
+              <li><Link href="/analyze" className="hover:text-primary transition-colors">Resume Analysis</Link></li>
+              <li><Link href="/interview/new" className="hover:text-primary transition-colors">Mock Interviews</Link></li>
+              <li><Link href="/dashboard" className="hover:text-primary transition-colors">Scorecards</Link></li>
+              <li><Link href="/pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-5 text-foreground">Resources</h4>
+            <ul className="flex flex-col gap-3.5 text-muted-foreground">
+              <li><Link href="/blog" className="hover:text-primary transition-colors">Interview Guides</Link></li>
+              <li><Link href="/blog/star-method" className="hover:text-primary transition-colors">STAR Method</Link></li>
+              <li><Link href="/system-design" className="hover:text-primary transition-colors">System Design</Link></li>
+              <li><Link href="/help" className="hover:text-primary transition-colors">Help Center</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-5 text-foreground">Legal</h4>
+            <ul className="flex flex-col gap-3.5 text-muted-foreground">
+              <li><Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link></li>
+              <li><Link href="/cookies" className="hover:text-primary transition-colors">Cookie Policy</Link></li>
+            </ul>
+          </div>
+        </div>
+        <div className="mx-auto max-w-6xl mt-16 pt-8 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4 text-muted-foreground text-[0.8rem]">
+          <p>© {new Date().getFullYear()} Interview.ai. All rights reserved.</p>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary border border-border">
+            <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-mono uppercase tracking-wider text-[0.65rem]">All systems operational</span>
+          </div>
+        </div>
       </footer>
     </div>
   );

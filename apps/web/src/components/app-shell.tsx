@@ -105,20 +105,42 @@ export function AppShell({ children, credits = 0, userName = "User", userRole = 
   const sidebarContent = (
     <div className="flex h-full flex-col justify-between bg-card text-card-foreground">
       <div className="flex flex-col gap-6 px-4 py-6">
-        {/* Brand Logo */}
-        <div className={cn("px-2 transition-all", collapsed && "flex flex-col items-center")}>
+        {/* Brand Logo & Toggle */}
+        <div className={cn("flex items-center px-2 transition-all", collapsed ? "flex-col gap-4" : "justify-between")}>
           {collapsed ? (
-            <Link href="/" className="font-serif text-xl font-bold tracking-tight text-primary">
-              i<span className="text-foreground">.</span>
-            </Link>
+            <>
+              <Link href="/" className="font-serif text-xl font-bold tracking-tight text-primary">
+                i<span className="text-foreground">.</span>
+              </Link>
+              <Button
+                onClick={toggleCollapse}
+                variant="ghost"
+                size="icon"
+                className="size-8 rounded-lg text-muted-foreground hover:bg-secondary hidden lg:flex"
+                title="Expand Sidebar"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </>
           ) : (
             <>
-              <Link href="/" className="font-serif text-xl font-medium tracking-tight text-foreground">
-                interview<span className="accent-text font-semibold text-primary">.ai</span>
-              </Link>
-              <div className="mt-1 font-mono text-[0.62rem] uppercase tracking-wider text-muted-foreground">
-                Mock Studio v2.0
+              <div>
+                <Link href="/" className="font-serif text-xl font-medium tracking-tight text-foreground">
+                  interview<span className="accent-text font-semibold text-primary">.ai</span>
+                </Link>
+                <div className="mt-1 font-mono text-[0.62rem] uppercase tracking-wider text-muted-foreground">
+                  Mock Studio v2.0
+                </div>
               </div>
+              <Button
+                onClick={toggleCollapse}
+                variant="ghost"
+                size="icon"
+                className="size-7 rounded-lg text-muted-foreground hover:bg-secondary hidden lg:flex"
+                title="Collapse Sidebar"
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
             </>
           )}
         </div>
@@ -246,15 +268,7 @@ export function AppShell({ children, credits = 0, userName = "User", userRole = 
             >
               <LogOut className="size-4" />
             </Button>
-            <Button
-              onClick={toggleCollapse}
-              variant="ghost"
-              size="icon"
-              className="size-8 rounded-lg text-muted-foreground hover:bg-secondary"
-              title="Expand Sidebar"
-            >
-              <ChevronRight className="size-4" />
-            </Button>
+
           </div>
         ) : (
           <div className="flex items-center justify-between gap-2">
@@ -272,15 +286,7 @@ export function AppShell({ children, credits = 0, userName = "User", userRole = 
               </div>
             </div>
             <div className="flex items-center gap-0.5">
-              <Button
-                onClick={toggleCollapse}
-                variant="ghost"
-                size="icon"
-                className="size-7 rounded-lg text-muted-foreground hover:bg-secondary"
-                title="Collapse Sidebar"
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
+
               <Button
                 onClick={handleLogout}
                 variant="ghost"
