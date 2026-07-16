@@ -1,62 +1,30 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { creditTransactions, db, users } from "@ai-interviewer/db";
-import { desc, eq } from "drizzle-orm";
-import { ArrowLeft, Coins } from "lucide-react";
+import { CircleUser } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 
-import { ChangePasswordForm } from "./change-password-form";
-import { CreditHistory } from "./credit-history";
-import { ProfileSection } from "./profile-section";
-import { RedeemCodeForm } from "./redeem-code-form";
-
-export default async function ProfilePage() {
+export default async function ProfileAccountPage() {
   const session = await auth();
-  if (!session?.user) redirect("/sign-in");
-
-  const [[user], transactions] = await Promise.all([
-    db.select({ creditBalance: users.creditBalance }).from(users).where(eq(users.id, session.user.id)).limit(1),
-    db
-      .select()
-      .from(creditTransactions)
-      .where(eq(creditTransactions.userId, session.user.id))
-      .orderBy(desc(creditTransactions.createdAt))
-      .limit(20),
-  ]);
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 p-6 sm:p-10">
-      <div className="flex items-center justify-between border-b border-border pb-5">
-        <Link href="/dashboard" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" />
-          Dashboard
-        </Link>
-      </div>
-
+    <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
-        <p className="text-muted-foreground">Your account, credits, and security.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
+        <p className="text-muted-foreground">Your basic account details.</p>
       </div>
 
-      <ProfileSection delay={0.08}>
-        <div className="studio-panel studio-glow flex flex-col items-center gap-1 rounded-md py-6 text-center">
-          <span className="flex items-center gap-1.5 font-mono text-[0.68rem] tracking-[0.12em] text-muted-foreground uppercase">
-            <Coins className="size-3.5 text-primary" />
-            Credit balance
+      <div className="studio-panel flex flex-col divide-y divide-border rounded-md">
+        <div className="flex items-center justify-between px-4 py-3 text-sm">
+          <span className="flex items-center gap-1.5 text-muted-foreground">
+            <CircleUser className="size-3.5" />
+            Name
           </span>
-          <span className="font-mono text-4xl font-semibold tabular-nums">{user?.creditBalance ?? 0}</span>
+          <span className="font-medium">{session?.user?.name ?? "—"}</span>
         </div>
-      </ProfileSection>
-
-      <ProfileSection delay={0.16} className="flex flex-col gap-4">
-        <RedeemCodeForm />
-        <CreditHistory transactions={transactions} />
-      </ProfileSection>
-
-      <ProfileSection delay={0.24}>
-        <ChangePasswordForm />
-      </ProfileSection>
+        <div className="flex items-center justify-between px-4 py-3 text-sm">
+          <span className="text-muted-foreground">Email</span>
+          <span className="font-medium">{session?.user?.email ?? "—"}</span>
+        </div>
+      </div>
     </div>
   );
 }

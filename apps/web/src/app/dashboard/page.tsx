@@ -2,10 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db, interviews, reports, users } from "@ai-interviewer/db";
 import { and, avg, count, desc, eq } from "drizzle-orm";
-import { Coins, LogOut } from "lucide-react";
+import { CircleUser, Coins } from "lucide-react";
 
-import { auth, signOut } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
+import { auth } from "@/lib/auth";
 
 import { DashboardAtmosphere } from "./dashboard-atmosphere";
 import { FlowEntry } from "./flow-entry";
@@ -61,28 +60,28 @@ export default async function DashboardPage() {
         </Link>
         <div className="flex items-center gap-2">
           {session.user.role === "admin" && (
-            <Link href="/admin/codes" className="text-xs text-muted-foreground hover:text-foreground">
+            <Link
+              href="/admin/codes"
+              className="rounded-full border border-border bg-card px-2.5 py-1 font-mono text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+            >
               Admin
             </Link>
           )}
           <Link
-            href="/profile"
+            href="/profile/credits"
             className="flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 font-mono text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
           >
             <Coins className="size-3 text-primary" />
             {currentUser?.creditBalance ?? 0}
           </Link>
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/" });
-            }}
+          <Link
+            href="/profile"
+            aria-label="Open your profile"
+            title="Profile"
+            className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
           >
-            <Button variant="outline" size="sm" type="submit" className="gap-1.5">
-              <LogOut className="size-3.5" />
-              Sign out
-            </Button>
-          </form>
+            <CircleUser className="size-4" />
+          </Link>
         </div>
       </div>
 
