@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { db, interviews, reports } from "@ai-interviewer/db";
+import { db, interviews, reports, users } from "@ai-interviewer/db";
 import { and, avg, count, desc, eq } from "drizzle-orm";
-import { LogOut } from "lucide-react";
+import { Coins, LogOut } from "lucide-react";
 
 import { auth, signOut } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ export default async function DashboardPage() {
 
   // Independent queries — none depend on another's result — so they run
   // concurrently instead of stacking sequential round trips.
-  const [statusCounts, typeCounts, avgScores, recentInterviews] = await Promise.all([
+  const [statusCounts, typeCounts, avgScores, recentInterviews, [currentUser]] = await Promise.all([
     db.select({ status: interviews.status, count: count() }).from(interviews).where(eq(interviews.userId, userId)).groupBy(interviews.status),
     db.select({ type: interviews.type, count: count() }).from(interviews).where(eq(interviews.userId, userId)).groupBy(interviews.type),
     db
@@ -45,6 +45,7 @@ export default async function DashboardPage() {
       .where(eq(interviews.userId, userId))
       .orderBy(desc(interviews.createdAt))
       .limit(12),
+    db.select({ creditBalance: users.creditBalance }).from(users).where(eq(users.id, userId)).limit(1),
   ]);
 
   const total = statusCounts.reduce((sum, s) => sum + s.count, 0);
@@ -58,17 +59,31 @@ export default async function DashboardPage() {
         <Link href="/" className="font-serif text-lg text-muted-foreground hover:text-foreground">
           interview<span className="accent-text font-semibold">.ai</span>
         </Link>
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/" });
-          }}
-        >
-          <Button variant="outline" size="sm" type="submit" className="gap-1.5">
-            <LogOut className="size-3.5" />
-            Sign out
-          </Button>
-        </form>
+        <div className="flex items-center gap-2">
+          {session.user.role === "admin" && (
+            <Link href="/admin/codes" className="text-xs text-muted-foreground hover:text-foreground">
+              Admin
+            </Link>
+          )}
+          <Link
+            href="/profile"
+            className="flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 font-mono text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+          >
+            <Coins className="size-3 text-primary" />
+            {currentUser?.creditBalance ?? 0}
+          </Link>
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/" });
+            }}
+          >
+            <Button variant="outline" size="sm" type="submit" className="gap-1.5">
+              <LogOut className="size-3.5" />
+              Sign out
+            </Button>
+          </form>
+        </div>
       </div>
 
       <div className="relative flex flex-col gap-8">
