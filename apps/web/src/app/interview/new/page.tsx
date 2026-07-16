@@ -1,11 +1,10 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { GapAnalysis, ResumeAnalysis } from "@ai-interviewer/ai-core";
-import { db, jobDescriptions, resumes } from "@ai-interviewer/db";
+import { db, jobDescriptions, resumes, users } from "@ai-interviewer/db";
 import { desc, eq } from "drizzle-orm";
-import { ArrowLeft } from "lucide-react";
 
 import { auth } from "@/lib/auth";
+import { AppShell } from "@/components/app-shell";
 
 import { InterviewSetup } from "./interview-setup";
 
@@ -13,12 +12,20 @@ export default async function NewInterviewPage() {
   const session = await auth();
   if (!session?.user) redirect("/sign-in");
 
-  const [latestResume] = await db
-    .select()
-    .from(resumes)
-    .where(eq(resumes.userId, session.user.id))
-    .orderBy(desc(resumes.createdAt))
-    .limit(1);
+  const [latestResume, [currentUser]] = await Promise.all([
+    db
+      .select()
+      .from(resumes)
+      .where(eq(resumes.userId, session.user.id))
+      .orderBy(desc(resumes.createdAt))
+      .limit(1)
+      .then((rows) => rows[0]),
+    db
+      .select({ creditBalance: users.creditBalance })
+      .from(users)
+      .where(eq(users.id, session.user.id))
+      .limit(1),
+  ]);
 
   // Interview setup needs an already-analyzed resume to plan topics around —
   // send anyone without one back to analyze first instead of duplicating the
@@ -34,28 +41,28 @@ export default async function NewInterviewPage() {
     : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 p-6 sm:p-10">
-      <div>
-        <Link
-          href="/dashboard"
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Dashboard
-        </Link>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">Take the stage</h1>
-        <p className="text-muted-foreground">Set up your session — type, difficulty, and time.</p>
-      </div>
+    <AppShell
+      credits={currentUser?.creditBalance ?? 0}
+      userName={session.user.name}
+      userRole={session.user.role}
+    >
+      <div className="flex flex-col gap-6 max-w-5xl">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl font-heading">Start Interview</h1>
+          <p className="text-muted-foreground text-sm">Set up your session: type, difficulty, and time.</p>
+        </div>
 
-      <InterviewSetup
-        resume={{
-          id: latestResume.id,
-          fileName: latestResume.fileName,
-          parsed: latestResume.parsedJson as ResumeAnalysis,
-        }}
-        jdId={lastJd?.id ?? null}
-        gap={latestResume.lastGapAnalysisJson as GapAnalysis | null}
-      />
-    </div>
+        <InterviewSetup
+          resume={{
+            id: latestResume.id,
+            fileName: latestResume.fileName,
+            parsed: latestResume.parsedJson as ResumeAnalysis,
+          }}
+          jdId={lastJd?.id ?? null}
+          gap={latestResume.lastGapAnalysisJson as GapAnalysis | null}
+        />
+      </div>
+    </AppShell>
   );
 }
+

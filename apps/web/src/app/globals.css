@@ -274,17 +274,23 @@
     transform: translateY(0);
   }
 
-  /* solid instrument-panel surface — replaces the old frosted .glass */
   .studio-panel {
     background: var(--card);
     border: 1px solid var(--border);
-    box-shadow: 0 1px 0 0 color-mix(in srgb, var(--foreground) 4%, transparent) inset;
+    box-shadow: 0 1px 0 0 color-mix(in srgb, var(--foreground) 2%, transparent) inset;
   }
-
+ 
   .studio-glow {
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--foreground) 8%, transparent),
-      0 0 24px -8px var(--primary);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    box-shadow: 
+      0 0 0 1px color-mix(in srgb, var(--foreground) 6%, transparent),
+      0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+ 
+  .studio-glow:hover {
+    box-shadow: 
+      0 0 0 1px color-mix(in srgb, var(--foreground) 10%, transparent),
+      0 4px 12px -4px color-mix(in srgb, var(--primary) 15%, transparent);
   }
 
   .accent-text {

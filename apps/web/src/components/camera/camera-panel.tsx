@@ -1,60 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FaceLandmarker, FilesetResolver, type FaceLandmarkerResult } from "@mediapipe/tasks-vision";
-import { Camera, CameraOff, Eye, EyeOff } from "lucide-react";
+import { Camera, CameraOff } from "lucide-react";
 import { toast } from "sonner";
 
 import { tileFrameClassName, tileLabelClassName, tileStatusDotClassName } from "@/components/studio";
 
 import { CameraConsentDialog } from "./camera-consent-dialog";
 
-// Versions must match the installed npm package — MediaPipe's WASM binary
-// and its JS bindings are not forward/backward compatible across versions.
-const WASM_BASE_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
-const MODEL_URL =
-  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
-
-const DETECT_INTERVAL_MS = 300;
-const ATTENTION_WINDOW = 20;
-// How far the nose can drift from the eye midpoint (as a fraction of eye
-// span) before we call it "looking away". Tuned loosely — this is practice
-// feedback, not a precise gaze tracker.
-const LOOKING_AWAY_THRESHOLD = 0.25;
-
 type Status = "idle" | "requesting" | "active" | "denied" | "unsupported" | "error";
 
-// Cached at module scope: the WASM runtime + model are a multi-MB one-time
-// download, so toggling the camera off and back on within a session (or
-// across interviews in the same tab) reuses the same landmarker instead of
-// reloading it.
-let landmarkerPromise: Promise<FaceLandmarker> | null = null;
-
-async function createLandmarker(delegate: "GPU" | "CPU"): Promise<FaceLandmarker> {
-  const fileset = await FilesetResolver.forVisionTasks(WASM_BASE_URL);
-  return FaceLandmarker.createFromOptions(fileset, {
-    baseOptions: { modelAssetPath: MODEL_URL, delegate },
-    runningMode: "VIDEO",
-    numFaces: 1,
-    outputFaceBlendshapes: false,
-    outputFacialTransformationMatrixes: false,
-  });
-}
-
-function getFaceLandmarker(): Promise<FaceLandmarker> {
-  if (!landmarkerPromise) {
-    // GPU delegate is faster; fall back to CPU if WebGL isn't usable.
-    landmarkerPromise = createLandmarker("GPU").catch(() => createLandmarker("CPU"));
-  }
-  return landmarkerPromise;
-}
-
 /**
- * Self-practice presence feedback — entirely client-side (LLD Section 11).
+ * Client-side camera preview.
  * The camera feed never leaves the device: no recording, no upload, no
  * frames or derived signals sent anywhere. Only a boolean consent flag is
- * persisted. Face-detected / looking-away / attention-score are shown to
- * the candidate only and are never part of the report.
+ * persisted.
  */
 export function CameraPanel({
   interviewId,
@@ -69,16 +29,9 @@ export function CameraPanel({
   const [consentOpen, setConsentOpen] = useState(false);
   const [consenting, setConsenting] = useState(false);
   const [hasConsented, setHasConsented] = useState(false);
-  const [modelReady, setModelReady] = useState(true);
-  const [faceDetected, setFaceDetected] = useState(false);
-  const [lookingAway, setLookingAway] = useState(false);
-  const [attentionScore, setAttentionScore] = useState<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const rafRef = useRef<number>(0);
-  const lastDetectRef = useRef(0);
-  const historyRef = useRef<number[]>([]);
   // getUserMedia and the face-landmarker load are both async and can resolve
   // after the component has already unmounted (e.g. the candidate navigates
   // away while the camera prompt or the multi-MB model download is still in
@@ -89,37 +42,10 @@ export function CameraPanel({
   // interview page.
   const mountedRef = useRef(true);
 
-  function processResult(result: FaceLandmarkerResult) {
-    const face = result.faceLandmarks[0];
-    const detected = !!face;
-    let away = false;
-    if (face) {
-      const nose = face[1];
-      const leftEye = face[33];
-      const rightEye = face[263];
-      const midX = (leftEye.x + rightEye.x) / 2;
-      const span = Math.abs(rightEye.x - leftEye.x) || 1;
-      away = Math.abs(nose.x - midX) / span > LOOKING_AWAY_THRESHOLD;
-    }
-    setFaceDetected(detected);
-    setLookingAway(away);
-
-    const history = historyRef.current;
-    history.push(detected && !away ? 1 : 0);
-    if (history.length > ATTENTION_WINDOW) history.shift();
-    const avg = history.reduce((a, b) => a + b, 0) / history.length;
-    setAttentionScore(Math.round(avg * 100));
-  }
-
   function stopCamera() {
-    cancelAnimationFrame(rafRef.current);
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
-    historyRef.current = [];
-    setFaceDetected(false);
-    setLookingAway(false);
-    setAttentionScore(null);
     setStatus("idle");
   }
 
@@ -148,30 +74,9 @@ export function CameraPanel({
         return;
       }
       setStatus("active");
-
-      getFaceLandmarker()
-        .then((landmarker) => {
-          if (!mountedRef.current) return;
-          function loop() {
-            if (!mountedRef.current) return;
-            const v = videoRef.current;
-            if (v && v.readyState >= 2) {
-              const now = performance.now();
-              if (now - lastDetectRef.current >= DETECT_INTERVAL_MS) {
-                lastDetectRef.current = now;
-                processResult(landmarker.detectForVideo(v, now));
-              }
-            }
-            rafRef.current = requestAnimationFrame(loop);
-          }
-          rafRef.current = requestAnimationFrame(loop);
-        })
-        .catch(() => {
-          // Camera preview still works without the ML model — degrade
-          // gracefully to "just a mirror" rather than losing the feature.
-          if (mountedRef.current) setModelReady(false);
-        });
-    } catch {
+    } catch (err) {
+      console.error("Camera access failed:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to access camera");
       if (mountedRef.current) setStatus("denied");
     }
   }
@@ -204,9 +109,9 @@ export function CameraPanel({
   }
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      cancelAnimationFrame(rafRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
@@ -222,6 +127,7 @@ export function CameraPanel({
     (async () => {
       try {
         const res = await fetch(`/api/interviews/${interviewId}/camera-consent`);
+        if (!res.ok) throw new Error("Database check failed");
         const data = await res.json();
         if (cancelled) return;
         if (data.hasConsented) {
@@ -230,9 +136,11 @@ export function CameraPanel({
         } else {
           setConsentOpen(true);
         }
-      } catch {
-        // Couldn't check — leave the camera off and let the manual toggle
-        // (which re-asks for consent) be the fallback path.
+      } catch (err) {
+        console.error("Camera consent check failed, falling back to dialog:", err);
+        if (!cancelled) {
+          setConsentOpen(true);
+        }
       }
     })();
     return () => {
@@ -247,11 +155,11 @@ export function CameraPanel({
         ref={videoRef}
         muted
         playsInline
-        className="size-full scale-x-[-1] object-cover"
+        className="absolute inset-0 size-full scale-x-[-1] object-cover"
         style={{ display: status === "active" ? "block" : "none" }}
       />
       {status !== "active" && (
-        <div className="flex size-full flex-col items-center justify-center gap-2 text-center">
+        <div className="absolute inset-0 flex size-full flex-col items-center justify-center gap-2 text-center">
           <CameraOff className="size-5 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">
             {status === "denied" ? "Camera access denied" : status === "requesting" ? "Requesting…" : "Camera off"}
@@ -274,21 +182,6 @@ export function CameraPanel({
         <span className={tileStatusDotClassName(!!active)} />
         You
       </span>
-
-      {status === "active" && (
-        <span className="absolute right-2 bottom-2 z-10 flex items-center gap-1 rounded-full bg-card/80 px-2 py-1 text-[0.62rem] text-muted-foreground backdrop-blur-sm">
-          {faceDetected && !lookingAway ? <Eye className="size-3 text-primary" /> : <EyeOff className="size-3" />}
-          {!modelReady
-            ? "Preview only"
-            : !faceDetected
-              ? "No face"
-              : lookingAway
-                ? "Look at screen"
-                : attentionScore !== null
-                  ? `${attentionScore}%`
-                  : "Good"}
-        </span>
-      )}
 
       <CameraConsentDialog
         open={consentOpen}

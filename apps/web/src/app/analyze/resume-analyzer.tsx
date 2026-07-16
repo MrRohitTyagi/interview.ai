@@ -133,7 +133,7 @@ export function ResumeAnalyzer({
             <CardDescription>Upload a PDF or DOCX (max 5MB).</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-input px-4 py-8 text-center transition-colors hover:border-primary/50 hover:bg-primary/5">
+            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-input px-4 py-8 text-center transition-colors hover:border-primary/50 hover:bg-primary/5">
               <input
                 type="file"
                 accept=".pdf,.docx"
@@ -186,7 +186,7 @@ export function ResumeAnalyzer({
                   Job description
                 </CardTitle>
                 <CardDescription>
-                  Paste the full posting — the interview and match score are both built around it.
+                  Paste the full posting: the interview and match score are both built around it.
                 </CardDescription>
               </CardHeader>
               <CardContent>

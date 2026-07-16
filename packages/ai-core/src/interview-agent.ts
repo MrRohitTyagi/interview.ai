@@ -37,13 +37,14 @@ const NATURAL_TONE_GUIDE =
   "- Ask ONE question at a time. Never stack multiple questions in a single turn.\n" +
   "- Don't over-explain why you're asking something, preview what's coming next, or narrate " +
   "your own process.\n" +
-  "- Match your question's depth to the topic's stated difficulty — easy topics should read " +
+  "- Match your question's depth to the topic's stated difficulty: easy topics should read " +
   "like a warm-up, hard topics should genuinely push.\n" +
   "- This will likely be read aloud by text-to-speech, so write it exactly as a person would " +
-  "say it out loud — no bullet points, numbered lists, or markdown.\n" +
+  "say it out loud: no bullet points, numbered lists, or markdown.\n" +
+  "- NEVER use en-dashes (\u2013), em-dashes (\u2014), or double-hyphens (--) in your nextQuestion. Use commas, semicolons, colons, or normal periods instead. This is critical for natural text-to-speech reading.\n" +
   "- You know the candidate's first name (given below). Use it occasionally where a real " +
-  "interviewer naturally would — acknowledging a strong answer, redirecting gently, or the " +
-  "closing remark — never in every turn or mid-question, which would sound robotic.";
+  "interviewer naturally would (acknowledging a strong answer, redirecting gently, or the " +
+  "closing remark) but never in every turn or mid-question, which would sound robotic.";
 
 const PERSONA_BY_TYPE: Record<InterviewType, string> = {
   technical:

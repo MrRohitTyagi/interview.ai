@@ -1,8 +1,9 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { db, users } from "@ai-interviewer/db";
+import { db, users, accounts, sessions, verificationTokens } from "@ai-interviewer/db";
 import { eq } from "drizzle-orm";
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 
 import { verifyPassword } from "@/lib/password";
 
@@ -15,12 +16,19 @@ class EmailNotVerifiedError extends CredentialsSignin {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: DrizzleAdapter(db),
+  adapter: DrizzleAdapter(db, {
+    usersTable: users,
+    accountsTable: accounts,
+    sessionsTable: sessions,
+    verificationTokensTable: verificationTokens,
+  }),
   session: { strategy: "jwt" },
   providers: [
-    // Google/GitHub removed for now — not configured/available yet. Re-add
-    // as provider entries here when that's ready; nothing else in this file
-    // depends on them.
+    Google({
+      clientId: process.env.AUTH_GOOGLE_ID,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      allowDangerousEmailAccountLinking: true,
+    }),
     Credentials({
       id: "password",
       name: "Email and password",

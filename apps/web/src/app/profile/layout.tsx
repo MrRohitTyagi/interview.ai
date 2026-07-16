@@ -1,28 +1,40 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { db, users } from "@ai-interviewer/db";
+import { eq } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
+import { AppShell } from "@/components/app-shell";
 
-import { ProfileSidebar } from "./profile-sidebar";
+import { ProfileTabs } from "./profile-tabs";
 
 export default async function ProfileLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/sign-in");
 
-  return (
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-6 sm:p-10">
-      <div className="flex items-center justify-between border-b border-border pb-5">
-        <Link href="/dashboard" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" />
-          Dashboard
-        </Link>
-      </div>
+  const [currentUser] = await db
+    .select({ creditBalance: users.creditBalance })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .limit(1);
 
-      <div className="flex flex-1 flex-col gap-6 sm:flex-row sm:gap-10">
-        <ProfileSidebar userName={session.user.name} userEmail={session.user.email} />
-        <div className="min-w-0 flex-1">{children}</div>
+  return (
+    <AppShell
+      credits={currentUser?.creditBalance ?? 0}
+      userName={session.user.name}
+      userRole={session.user.role}
+    >
+      <div className="flex flex-col gap-6 max-w-4xl">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl font-heading">Settings</h1>
+          <p className="text-muted-foreground text-sm">Manage your profile details, tokens, and credentials.</p>
+        </div>
+
+        <div className="flex flex-col gap-5">
+          <ProfileTabs />
+          <div className="min-w-0 flex-1 rounded-xl border border-border bg-card p-6">{children}</div>
+        </div>
       </div>
-    </div>
+    </AppShell>
   );
 }
+

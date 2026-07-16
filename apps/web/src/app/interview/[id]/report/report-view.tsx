@@ -136,7 +136,7 @@ export function ReportView({
         />
         <div>
           <p className="font-medium">Generating your report…</p>
-          <p className="text-sm text-muted-foreground">Reviewing the full transcript — this takes a moment.</p>
+          <p className="text-sm text-muted-foreground">Reviewing the full transcript; this takes a moment.</p>
         </div>
       </div>
     );

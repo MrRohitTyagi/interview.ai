@@ -136,7 +136,7 @@ export async function POST(req: Request) {
       parentQuestionId: null,
       topic: plan.topics[0].topic,
       difficulty: plan.topics[0].difficulty,
-      question: plan.openingQuestion,
+      question: plan.openingQuestion.replace(/—|–|--/g, ", "),
       order: 0,
       askedAt: new Date(),
     })

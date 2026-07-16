@@ -28,7 +28,7 @@ const ENTRIES = [
     iconWrapClassName: "bg-chart-2/12 text-chart-2",
     ctaClassName: "text-chart-2",
     title: "Take the stage",
-    description: "A live, adaptive mock interview — spoken, adaptive, and scored like the real thing.",
+    description: "A live, adaptive mock interview: spoken, adaptive, and scored like the real thing.",
     cta: "Start interview",
   },
 ] as const;
@@ -40,10 +40,11 @@ export function FlowEntry() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2 flex-1">
       {ENTRIES.map(({ href, icon: Icon, iconWrapClassName, ctaClassName, title, description, cta }, i) => (
         <motion.div
           key={href}
+          className="h-full"
           initial={reduceMotion ? false : { opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
@@ -54,8 +55,10 @@ export function FlowEntry() {
                 <div className={`flex size-10 items-center justify-center rounded-full ${iconWrapClassName}`}>
                   <Icon className="size-4.5" />
                 </div>
-                <CardTitle className="mt-2.5 text-lg">{title}</CardTitle>
-                <CardDescription>{description}</CardDescription>
+                <div className="flex flex-col gap-1">
+                  <h3 className="font-serif text-lg font-medium leading-none">{title}</h3>
+                  <p className="text-sm text-muted-foreground min-h-16">{description}</p>
+                </div>
               </CardHeader>
               <CardContent>
                 <span className={`flex items-center gap-1.5 text-sm font-medium ${ctaClassName}`}>

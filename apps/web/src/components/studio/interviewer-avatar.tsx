@@ -2,42 +2,41 @@
 
 import { useEffect, useRef } from "react";
 
-/**
- * Abstract, calm avatar for the AI interviewer's tile. The mouth opens and
- * closes while `active` (speaking) using two overlapping sine waves rather
- * than randomized targets — that randomness is exactly what made the old
- * bar-waveform orb read as jittery. Motion is continuous and smoothly
- * ramps in/out via `energyRef`, which survives across re-runs of the
- * effect below (a plain useRef, not reset on state changes).
- */
 export function InterviewerAvatar({ active }: { active: boolean }) {
-  const mouthRef = useRef<SVGEllipseElement>(null);
-  const ringRef = useRef<HTMLDivElement>(null);
   const energyRef = useRef(0);
+  const coreRef = useRef<SVGCircleElement>(null);
+  const ring1Ref = useRef<SVGCircleElement>(null);
+  const ring2Ref = useRef<SVGCircleElement>(null);
 
   useEffect(() => {
-    const mouth = mouthRef.current;
-    const ring = ringRef.current;
-    if (!mouth || !ring) return;
-
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
-      mouth.setAttribute("ry", active ? "5" : "2");
-      mouth.setAttribute("rx", "9");
-      ring.style.opacity = active ? "0.2" : "0.1";
-      return;
-    }
-
     let raf = 0;
+    const core = coreRef.current;
+    const ring1 = ring1Ref.current;
+    const ring2 = ring2Ref.current;
+    if (!core || !ring1 || !ring2) return;
+
     function frame() {
       const target = active ? 1 : 0;
-      energyRef.current += (target - energyRef.current) * 0.06;
+      energyRef.current += (target - energyRef.current) * 0.1;
       const t = performance.now() / 1000;
-      const wobble = (0.5 + 0.5 * Math.sin(t * 8.6)) * (0.5 + 0.5 * Math.sin(t * 13.1));
-      const ry = 2 + energyRef.current * wobble * 8;
-      mouth!.setAttribute("ry", ry.toFixed(2));
-      mouth!.setAttribute("rx", (10 - energyRef.current * wobble * 1.5).toFixed(2));
-      ring!.style.opacity = (0.1 + energyRef.current * 0.22).toFixed(2);
+
+      // Smooth breathing scale
+      const breathe = 1 + Math.sin(t * 2.2) * 0.04;
+      
+      // Dynamic speech scale
+      const speakWobble = active 
+        ? Math.sin(t * 18) * 0.08 + Math.cos(t * 26) * 0.05 
+        : 0;
+
+      const scale = breathe + energyRef.current * speakWobble;
+      
+      core!.setAttribute("r", (18 * scale).toFixed(2));
+      ring1!.setAttribute("r", (28 * (breathe + energyRef.current * (0.15 + Math.sin(t * 12) * 0.06))).toFixed(2));
+      ring2!.setAttribute("r", (38 * (breathe + energyRef.current * (0.25 + Math.cos(t * 8) * 0.08))).toFixed(2));
+
+      ring1!.style.opacity = (0.25 + energyRef.current * 0.4).toFixed(2);
+      ring2!.style.opacity = (0.12 + energyRef.current * 0.3).toFixed(2);
+
       raf = requestAnimationFrame(frame);
     }
     raf = requestAnimationFrame(frame);
@@ -45,17 +44,42 @@ export function InterviewerAvatar({ active }: { active: boolean }) {
   }, [active]);
 
   return (
-    <div className="relative size-full">
-      <div
-        ref={ringRef}
-        aria-hidden
-        className="pointer-events-none absolute -inset-4 rounded-full bg-primary opacity-10 blur-xl"
-      />
-      <svg viewBox="0 0 104 104" className="relative size-full" aria-hidden="true">
-        <circle cx="52" cy="52" r="50" className="fill-secondary" />
-        <circle cx="41" cy="45" r="2.8" className="studio-avatar-blink fill-muted-foreground" />
-        <circle cx="63" cy="45" r="2.8" className="studio-avatar-blink fill-muted-foreground" />
-        <ellipse ref={mouthRef} cx="52" cy="65" rx="10" ry="2" className="fill-primary" />
+    <div className="relative size-full flex items-center justify-center bg-card">
+      {/* Background radial glow */}
+      <div className="pointer-events-none absolute inset-0 rounded-full bg-primary/5 blur-3xl" />
+      
+      <svg viewBox="0 0 100 100" className="w-[60%] h-[60%] max-w-[120px] max-h-[120px]" aria-hidden="true">
+        {/* Outer Ring */}
+        <circle
+          ref={ring2Ref}
+          cx="50"
+          cy="50"
+          r="38"
+          fill="none"
+          stroke="currentColor"
+          className="text-primary"
+          strokeWidth="1"
+          strokeDasharray="4 4"
+        />
+        {/* Inner Ring */}
+        <circle
+          ref={ring1Ref}
+          cx="50"
+          cy="50"
+          r="28"
+          fill="none"
+          stroke="currentColor"
+          className="text-primary"
+          strokeWidth="1.5"
+        />
+        {/* Glowing Core Particle */}
+        <circle
+          ref={coreRef}
+          cx="50"
+          cy="50"
+          r="18"
+          className="fill-primary text-primary"
+        />
       </svg>
     </div>
   );

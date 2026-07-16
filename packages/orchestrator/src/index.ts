@@ -188,7 +188,7 @@ export async function processInterviewTurn(
   }
 
   let action = turn.action;
-  let message = turn.nextQuestion;
+  let message = turn.nextQuestion.replace(/—|–|--/g, ", ");
 
   // Defense in depth: processTurn already tells Claude about the cap before
   // it decides, so this should rarely fire. If it does anyway, don't trust

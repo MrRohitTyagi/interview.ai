@@ -136,9 +136,9 @@ export async function generateInterviewPlan(params: {
       "interview (e.g. a hard interview should still open with an easier topic before ramping " +
       "up, not start at maximum difficulty).\n\n" +
       "Write each topic's `guidance` and the opening question the way a real interviewer would " +
-      "actually talk — short, plain, conversational sentences, not written prose, with the " +
+      "actually talk: short, plain, conversational sentences, not written prose, with the " +
       "warm, easy rhythm of a friendly senior Indian tech professional, not a tight or overly " +
-      "serious script. Interviewer turns built from this plan may be read aloud by " +
+      "serious script. NEVER use en-dashes (\u2013), em-dashes (\u2014), or double-hyphens (--) in the opening question or guidance; use standard punctuation instead. Interviewer turns built from this plan may be read aloud by " +
       "text-to-speech." +
       (params.gap
         ? "\n\nPrioritize topics from the gap analysis where the candidate's fit is uncertain."
@@ -160,7 +160,8 @@ export async function generateInterviewPlan(params: {
         ? wrapUntrusted("candidate_instructions", params.customInstructions) + "\n\n"
         : "") +
       `The opening question is one or two short, casual, spoken sentences — greet the candidate ` +
-      `by their first name, and write it ${openerStyle}. It must reference something concrete and ` +
+      `by their first name, introduce yourself as John (do not use generic placeholders like [Interviewer Name] or [Your Name]), ` +
+      `and write it ${openerStyle}. It must reference something concrete and ` +
       `specific from THIS candidate's actual resume above (a real project, company, or skill name) ` +
       `— never a generic line that could apply to any candidate, and not a technical question yet.`,
     toolName: "record_interview_plan",

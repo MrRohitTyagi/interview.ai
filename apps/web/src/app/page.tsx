@@ -43,7 +43,7 @@ const SCRIPT: Turn[] = [
     who: "Interviewer",
     phase: "speaking",
     topic: "Backend Architecture · Hard",
-    text: "Okay — what pushed the team to break the monolith into microservices?",
+    text: "Okay, what pushed the team to break the monolith into microservices?",
   },
   {
     who: "Candidate",
@@ -65,7 +65,7 @@ const SCRIPT: Turn[] = [
     who: "Interviewer",
     phase: "speaking",
     topic: "System Design · Hard",
-    text: "Different question — how would you design a rate limiter for a public API?",
+    text: "Different question: how would you design a rate limiter for a public API?",
   },
   {
     who: "Candidate",
@@ -85,8 +85,8 @@ const DEMO_TURNS = [
 
 const CHANNELS = [
   { code: "CH.01 · INTAKE", title: "Resume & JD", fill: 65, body: "Parsed and cross-referenced for gaps before a single question is asked." },
-  { code: "CH.02 · ADAPTIVE", title: "Live follow-ups", fill: 85, body: "Vague answer, it digs in. Solid answer, it moves on — no fixed script." },
-  { code: "CH.03 · VOICE", title: "A real conversation", fill: 50, body: "Spoken, not typed — you talk, the interviewer listens and talks back, just like the real thing." },
+  { code: "CH.02 · ADAPTIVE", title: "Live follow-ups", fill: 85, body: "Vague answer, it digs in. Solid answer, it moves on: no fixed script." },
+  { code: "CH.03 · VOICE", title: "A real conversation", fill: 50, body: "Spoken, not typed: you talk, the interviewer listens and talks back, just like the real thing." },
   { code: "CH.04 · REPORT", title: "Scored transcript", fill: 92, body: "A calibrated, hiring-style writeup the moment the session ends." },
 ];
 
@@ -102,7 +102,7 @@ const RIG_FEATURES = [
   {
     icon: Camera,
     title: "Camera, entirely local",
-    body: "See yourself the way an interviewer would. Nothing is recorded or uploaded — the feed never leaves your device.",
+    body: "See yourself the way an interviewer would. Nothing is recorded or uploaded: the feed never leaves your device.",
     soon: false,
   },
   {
@@ -120,13 +120,13 @@ const RIG_FEATURES = [
   {
     icon: RotateCcw,
     title: "Pick up where you left off",
-    body: "Close the tab, come back later — your next question is waiting exactly where you left it.",
+    body: "Close the tab, come back later; your next question is waiting exactly where you left it.",
     soon: false,
   },
   {
     icon: History,
     title: "A history that means something",
-    body: "Every attempt, scored and kept — see the trend across sessions, not just the last one.",
+    body: "Every attempt, scored and kept: see the trend across sessions, not just the last one.",
     soon: false,
   },
   {
@@ -371,10 +371,10 @@ export default function Home() {
       audioCtxRef.current = ctx;
       setMicAnalyser(node);
       setMicActive(true);
-      setMicStatus("Live — say something");
+      setMicStatus("Live: say something");
       setMicError(false);
     } catch {
-      setMicStatus("Mic access was denied or unavailable — check your browser's permissions");
+      setMicStatus("Mic access was denied or unavailable; check your browser's permissions");
       setMicError(true);
     }
   }
@@ -436,7 +436,7 @@ export default function Home() {
               transition={{ duration: 0.8, delay: 0.28 }}
               className="mt-5 max-w-[46ch] text-lg text-muted-foreground"
             >
-              Upload your resume and the job description. Interview.ai runs a real, adaptive interview — it follows
+              Upload your resume and the job description. Interview.ai runs a real, adaptive interview: it follows
               up, changes course, and pushes back exactly like a person on the other side of the call would.
             </motion.p>
 

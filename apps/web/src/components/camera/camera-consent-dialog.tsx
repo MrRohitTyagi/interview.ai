@@ -32,7 +32,7 @@ export function CameraConsentDialog({
             Turn on your camera?
           </DialogTitle>
           <DialogDescription>
-            This gives you live feedback on your presence during practice — whether your face is
+            This gives you live feedback on your presence during practice: whether your face is
             visible and how much you&apos;re looking at the screen.
           </DialogDescription>
         </DialogHeader>
@@ -40,7 +40,7 @@ export function CameraConsentDialog({
           <li className="flex items-start gap-2">
             <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-primary" />
             Everything runs on your device. Your video is never recorded, uploaded, or seen by
-            anyone — including us.
+            anyone, including us.
           </li>
           <li className="flex items-start gap-2">
             <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-primary" />
@@ -49,7 +49,7 @@ export function CameraConsentDialog({
           </li>
           <li className="flex items-start gap-2">
             <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-primary" />
-            You can turn it off any time — the interview works fine without it.
+            You can turn it off any time; the interview works fine without it.
           </li>
         </ul>
         <DialogFooter className="items-center sm:justify-between">

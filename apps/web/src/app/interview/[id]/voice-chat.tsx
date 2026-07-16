@@ -37,40 +37,170 @@ function formatCountdown(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function getSpeechRecognitionCtor(): typeof SpeechRecognition | null {
-  if (typeof window === "undefined") return null;
-  return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
+class AudioRecorder {
+  private audioContext: AudioContext | null = null;
+  private stream: MediaStream | null = null;
+  private workletNode: AudioWorkletNode | null = null;
+  private onAudioData: (base64Chunk: string) => void;
+
+  constructor(onAudioData: (base64Chunk: string) => void) {
+    this.onAudioData = onAudioData;
+  }
+
+  async start() {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    this.audioContext = new AudioContextClass({ sampleRate: 16000 });
+    
+    const workletCode = `
+      class PCMProcessor extends AudioWorkletProcessor {
+        process(inputs) {
+          const input = inputs[0];
+          if (input && input.length > 0) {
+            const channelData = input[0];
+            const pcm16 = new Int16Array(channelData.length);
+            for (let i = 0; i < channelData.length; i++) {
+              const s = Math.max(-1, Math.min(1, channelData[i]));
+              pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            this.port.postMessage(pcm16.buffer);
+          }
+          return true;
+        }
+      }
+      registerProcessor('pcm-processor', PCMProcessor);
+    `;
+    const blob = new Blob([workletCode], { type: "application/javascript" });
+    const url = URL.createObjectURL(blob);
+    await this.audioContext.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+
+    this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const source = this.audioContext.createMediaStreamSource(this.stream);
+    
+    this.workletNode = new AudioWorkletNode(this.audioContext, "pcm-processor");
+    this.workletNode.port.onmessage = (event) => {
+      const arrayBuffer = event.data;
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64 = btoa(binary);
+      this.onAudioData(base64);
+    };
+
+    source.connect(this.workletNode);
+    this.workletNode.connect(this.audioContext.destination);
+  }
+
+  stop() {
+    if (this.workletNode) {
+      this.workletNode.disconnect();
+      this.workletNode = null;
+    }
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      this.stream = null;
+    }
+    if (this.audioContext) {
+      this.audioContext.close();
+      this.audioContext = null;
+    }
+  }
 }
 
-// Names of higher-quality voices worth preferring over a browser's default
-// (usually a robotic, formant-based local voice). Checked in order.
-const PREFERRED_VOICE_NAMES = [
-  "Google US English",
-  "Google UK English Female",
-  "Microsoft Aria Online (Natural)",
-  "Microsoft Jenny Online (Natural)",
-  "Microsoft Guy Online (Natural)",
-  "Samantha",
-  "Ava",
-  "Karen",
-  "Daniel",
-];
+class AudioPlayer {
+  private audioContext: AudioContext | null = null;
+  private nextPlayTime: number = 0;
+  private isPlaying: boolean = false;
 
-function pickNaturalVoice(): SpeechSynthesisVoice | null {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length === 0) return null;
-
-  const english = voices.filter((v) => v.lang.startsWith("en"));
-  const pool = english.length > 0 ? english : voices;
-
-  for (const name of PREFERRED_VOICE_NAMES) {
-    const match = pool.find((v) => v.name.includes(name));
-    if (match) return match;
+  private initContext() {
+    if (!this.audioContext) {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      this.audioContext = new AudioContextClass({ sampleRate: 24000 });
+      this.nextPlayTime = this.audioContext.currentTime;
+    }
   }
-  // Network-backed voices (localService === false) are almost always neural
-  // voices and sound far more natural than the OS's built-in local engine.
-  return pool.find((v) => !v.localService) ?? pool[0];
+
+  resume() {
+    this.initContext();
+    if (this.audioContext && this.audioContext.state === "suspended") {
+      this.audioContext.resume();
+    }
+  }
+
+  playChunk(base64Data: string) {
+    this.initContext();
+    if (!this.audioContext) return;
+
+    const raw = atob(base64Data);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) {
+      bytes[i] = raw.charCodeAt(i);
+    }
+
+    const int16Array = new Int16Array(bytes.buffer);
+    const float32Array = new Float32Array(int16Array.length);
+    const scale = 32768.0;
+    for (let i = 0; i < int16Array.length; i++) {
+      float32Array[i] = int16Array[i] / scale;
+    }
+
+    const audioBuf = this.audioContext.createBuffer(1, float32Array.length, 24000);
+    audioBuf.copyToChannel(float32Array, 0);
+
+    const source = this.audioContext.createBufferSource();
+    source.buffer = audioBuf;
+    source.connect(this.audioContext.destination);
+
+    const now = this.audioContext.currentTime;
+    if (this.nextPlayTime < now) {
+      this.nextPlayTime = now + 0.02;
+    }
+    source.start(this.nextPlayTime);
+    this.nextPlayTime += audioBuf.duration;
+    this.isPlaying = true;
+
+    source.onended = () => {
+      if (this.audioContext && this.audioContext.currentTime >= this.nextPlayTime - 0.05) {
+        this.isPlaying = false;
+      }
+    };
+  }
+
+  stop() {
+    if (this.audioContext) {
+      this.audioContext.close();
+      this.audioContext = null;
+    }
+    this.nextPlayTime = 0;
+    this.isPlaying = false;
+  }
+
+  getIsPlaying() {
+    if (!this.audioContext || this.audioContext.state === "suspended") return false;
+    return this.audioContext.currentTime < this.nextPlayTime;
+  }
+}
+
+const LIVE_SYSTEM_INSTRUCTION =
+  "You are a professional, warm AI interviewer named John. " +
+  "Your ONLY task is to act as the audio speaker and transcriber. " +
+  "When you receive a text message from the system, read it aloud EXACTLY as written, with a warm, natural tone. " +
+  "Do not add any of your own greetings, explanations, or commentary. Just read the text exactly as provided. " +
+  "When the candidate speaks, you must transcribe their words in real-time, but you must NEVER respond or generate any speech yourself. " +
+export interface VoiceChatProps {
+  interviewId: string;
+  initialTranscript: { question: string; answer: string | null; topic: string | null }[];
+  initialCompleted: boolean;
+  startedAt: string | null;
+  durationMinutes: number;
+  plan?: any;
+  resume?: any;
+  jd?: any;
+  candidateName?: string;
+  interviewType?: string;
 }
 
 export function VoiceChat({
@@ -79,16 +209,15 @@ export function VoiceChat({
   initialCompleted,
   startedAt,
   durationMinutes,
-}: {
-  interviewId: string;
-  initialTranscript: TranscriptEntry[];
-  initialCompleted: boolean;
-  startedAt: string | null;
-  durationMinutes: number;
-}) {
+  plan,
+  resume,
+  jd,
+  candidateName,
+  interviewType,
+}: VoiceChatProps) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
-  const [transcript, setTranscript] = useState<TranscriptEntry[]>(initialTranscript);
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>(initialTranscript as TranscriptEntry[]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [started, setStarted] = useState(false);
   const [completed, setCompleted] = useState(initialCompleted);
@@ -98,19 +227,30 @@ export function VoiceChat({
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const finalTranscriptRef = useRef("");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const audioRecorderRef = useRef<AudioRecorder | null>(null);
+  const audioPlayerRef = useRef<AudioPlayer>(null);
+  if (!audioPlayerRef.current && typeof window !== "undefined") {
+    audioPlayerRef.current = new AudioPlayer();
+  }
+
   const phaseRef = useRef<Phase>(phase);
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
 
+  const completedRef = useRef<boolean>(completed);
+  useEffect(() => {
+    completedRef.current = completed;
+  }, [completed]);
+
+  const transcriptRef = useRef<TranscriptEntry[]>(transcript);
+  useEffect(() => {
+    transcriptRef.current = transcript;
+  }, [transcript]);
+
   const currentTopic = transcript[transcript.length - 1]?.topic ?? null;
   const history = transcript.filter((entry) => entry.answer !== null);
-  // At least one question already has an answer on the server — this is a
-  // reopened session (tab closed/back, not a first-ever entry), even though
-  // `started` is false again client-side after the remount.
   const isResuming = history.length > 0;
 
   useEffect(() => {
@@ -125,240 +265,257 @@ export function VoiceChat({
   }, [startedAt, durationMinutes, completed]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    // Voice lists load asynchronously the first time — this warms the
-    // cache so the first speak() call already has options to pick from.
-    window.speechSynthesis.getVoices();
-    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     return () => {
-      recognitionRef.current?.stop();
-      window.speechSynthesis?.cancel();
-      audioRef.current?.pause();
+      audioRecorderRef.current?.stop();
+      audioPlayerRef.current?.stop();
+      if (socketRef.current) {
+        socketRef.current.close();
+      }
     };
   }, []);
 
-  function stopSpeaking() {
-    window.speechSynthesis?.cancel();
-    audioRef.current?.pause();
-    audioRef.current = null;
-  }
-
-  // Browser TTS — the original implementation, kept as-is. Used directly
-  // when ElevenLabs isn't configured, and as the automatic fallback for any
-  // ElevenLabs failure (missing/invalid key, quota exhausted, network
-  // error) so a voice API outage never blocks the interview.
-  function speakBrowser(text: string, onDone: () => void) {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voice = pickNaturalVoice();
-    if (voice) utterance.voice = voice;
-    utterance.rate = 1.03;
-    utterance.pitch = 1;
-    utterance.onend = onDone;
-    utterance.onerror = onDone;
-    window.speechSynthesis.speak(utterance);
-  }
-
-  async function speak(text: string, onDone: () => void) {
-    // Both engines can fail *silently* — a browser can reject or simply
-    // drop a play()/speak() call (autoplay policy, stale user-activation
-    // after the await below) without ever firing onend/onerror. Without a
-    // backstop, that leaves `phase` stuck on "speaking" forever: the mic
-    // never turns on and the candidate is stranded with no submit button
-    // and no sound. `fireOnce` guarantees onDone always runs exactly once,
-    // either from real completion or this timeout, whichever comes first.
-    let fired = false;
-    const timeout = setTimeout(
-      () => fireOnce(),
-      Math.min(30000, Math.max(8000, text.length * 90))
-    );
-    function fireOnce() {
-      if (fired) return;
-      fired = true;
-      clearTimeout(timeout);
-      onDone();
-    }
-
-    try {
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok) throw new Error("TTS unavailable");
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => {
-        URL.revokeObjectURL(url);
-        if (audioRef.current === audio) audioRef.current = null;
-        fireOnce();
-      };
-      audio.onerror = () => {
-        URL.revokeObjectURL(url);
-        if (audioRef.current === audio) audioRef.current = null;
-        speakBrowser(text, fireOnce);
-      };
-      await audio.play();
-    } catch {
-      // Covers a non-ok response, a network failure, and browsers that
-      // reject audio.play() (e.g. autoplay policy) — either way, the
-      // candidate still hears the question via the browser's own voice.
-      speakBrowser(text, fireOnce);
-    }
-  }
-
-  // Builds and wires a fresh recognition instance. Some browsers (notably
-  // Chrome) end continuous recognition after a few seconds of silence even
-  // though `continuous: true` was requested — far short of a real pause in
-  // an interview answer. Rather than trying to resurrect the same (now
-  // stopped) instance, onend below spins up a brand new one and keeps
-  // listening. Nothing is lost across that swap because the finalized
-  // transcript lives in a ref outside the recognition object.
-  function createRecognition(): SpeechRecognition | null {
-    const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor) return null;
-    const recognition = new Ctor();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognition.onresult = (event) => {
-      let interimText = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalTranscriptRef.current += result[0].transcript + " ";
-        } else {
-          interimText += result[0].transcript;
-        }
-      }
-      setLiveTranscript((finalTranscriptRef.current + interimText).trim());
-    };
-
-    recognition.onerror = (event) => {
-      if (event.error === "no-speech" || event.error === "aborted") return;
-      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-        toast.error("Microphone access was denied — allow it and try again.");
-        setPhase("idle");
-        setStarted(false);
-        return;
-      }
-      toast.error(`Mic error: ${event.error}`);
-    };
-
-    recognition.onend = () => {
-      // Read phase from a ref, not a setState updater. React's Strict Mode
-      // (on by default in dev) invokes updater functions twice to catch
-      // impure updaters — and starting a live microphone recognizer is a
-      // real side effect, not a pure state transition. Doing it inside
-      // setPhase() meant every silence-triggered restart spun up *two* new
-      // recognizers, each of which would itself end and double again:
-      // exponential growth of live SpeechRecognition instances that pegs
-      // the CPU and the mic subsystem until the whole machine bogs down.
-      if (phaseRef.current === "listening" && recognitionRef.current === recognition) {
-        const next = createRecognition();
-        if (next) {
-          recognitionRef.current = next;
-          try {
-            next.start();
-          } catch {
-            // already starting elsewhere — ignore
-          }
-        }
-      }
-    };
-
-    return recognition;
-  }
-
-  function startListening() {
-    const recognition = createRecognition();
-    if (!recognition) {
-      setPhase("unsupported");
-      return;
-    }
-    finalTranscriptRef.current = "";
+  async function startListening() {
     setLiveTranscript("");
-    recognitionRef.current = recognition;
-    recognition.start();
-    setPhase("listening");
+    try {
+      audioRecorderRef.current = new AudioRecorder((base64Chunk) => {
+        if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN && phaseRef.current === "listening") {
+          const streamMsg = {
+            realtimeInput: {
+              mediaChunks: [
+                {
+                  mimeType: "audio/pcm;rate=16000",
+                  data: base64Chunk
+                }
+              ]
+            }
+          };
+          socketRef.current.send(JSON.stringify(streamMsg));
+        }
+      });
+      await audioRecorderRef.current.start();
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+      toast.error("Could not access microphone");
+      setPhase("idle");
+      setStarted(false);
+    }
+  }
+
+  async function syncTurnToBackend(question: string, answer: string, topic: string) {
+    try {
+      setTranscript((prev) => {
+        const copy = [...prev];
+        const last = copy[copy.length - 1];
+        if (last && last.answer === null) {
+          last.answer = answer;
+        } else {
+          copy[copy.length - 1] = { ...last, answer };
+        }
+        return [...copy, { question, answer: null, topic }];
+      });
+    } catch (err) {
+      console.error("Failed to sync turn", err);
+    }
   }
 
   async function submitAnswer() {
-    if (recognitionRef.current) recognitionRef.current.onend = null;
-    recognitionRef.current?.stop();
-    recognitionRef.current = null;
-
-    const answer = liveTranscript.trim();
-    if (!answer) {
-      toast.error("Didn't catch that — try again.");
-      startListening();
-      return;
-    }
-
-    setPhase("thinking");
-    setTranscript((prev) => {
-      const copy = [...prev];
-      copy[copy.length - 1] = { ...copy[copy.length - 1], answer };
-      return copy;
-    });
-
-    try {
-      const res = await fetch(`/api/interviews/${interviewId}/turn`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answer }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to submit answer");
-
-      if (data.completed) {
-        setCompleted(true);
-        setClosingMessage(data.message);
-        // Fire-and-forget: kick off report generation now instead of
-        // leaving it fully lazy until someone opens the report page. Not
-        // awaited — Opus takes 10-30s and there's nothing useful to block
-        // on here. The report page's own generate-on-mount logic is
-        // idempotent, so this is purely a head start.
-        fetch(`/api/interviews/${interviewId}/report`, { method: "POST" }).catch(() => {});
-        setPhase("speaking");
-        speak(data.message, () => setPhase("done"));
-      } else {
-        setTranscript((prev) => [...prev, { question: data.message, answer: null, topic: data.topic }]);
-        setPhase("speaking");
-        speak(data.message, startListening);
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
-      setTranscript((prev) => {
-        const copy = [...prev];
-        copy[copy.length - 1] = { ...copy[copy.length - 1], answer: null };
-        return copy;
-      });
-      startListening();
-    }
+    // This is handled automatically by Gemini now!
   }
 
-  function begin() {
-    const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor || typeof window === "undefined" || !("speechSynthesis" in window)) {
-      setPhase("unsupported");
-      return;
-    }
+  async function begin() {
+    audioPlayerRef.current?.resume();
     setStarted(true);
-    if (completed) {
-      setPhase("done");
-      return;
-    }
-    const last = transcript[transcript.length - 1];
-    if (last && last.answer === null) {
-      setPhase("speaking");
-      speak(last.question, startListening);
-    } else {
-      startListening();
+    setPhase("thinking");
+
+    try {
+      const tokenRes = await fetch("/api/interviews/gemini-token");
+      if (!tokenRes.ok) throw new Error("Could not load API credentials from server");
+      const { key } = await tokenRes.json();
+
+      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${key}`;
+      const ws = new WebSocket(wsUrl);
+      socketRef.current = ws;
+
+      ws.onopen = () => {
+        const dynamicInstruction = 
+          `You are a professional, warm AI interviewer named Puck conducting a ${durationMinutes}-minute ${interviewType} interview.\n` +
+          `Candidate Name: ${candidateName}\n` +
+          `Resume: ${JSON.stringify(resume)}\n` +
+          `Job Description: ${JSON.stringify(jd)}\n` +
+          `Interview Plan: ${JSON.stringify(plan)}\n\n` +
+          `INSTRUCTIONS:\n` +
+          `1. Act naturally, keep questions short and conversational.\n` +
+          `2. When the user stops speaking, briefly react and ask the next question or follow-up.\n` +
+          `3. NEVER use placeholders or markdown.\n` +
+          `4. Move through the planned topics sequentially. You may ask 1-2 follow ups per topic before moving on.\n` +
+          `5. Use the record_turn tool AFTER EVERY question you ask to log what you just said and the topic.`;
+
+        const setupMsg = {
+          setup: {
+            model: "models/gemini-2.5-flash-native-audio-latest",
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName: "Puck"
+                  }
+                }
+              }
+            },
+            systemInstruction: {
+              parts: [{ text: dynamicInstruction }]
+            },
+            tools: [
+              {
+                functionDeclarations: [
+                  {
+                    name: "record_turn",
+                    description: "Records the question you just asked.",
+                    parameters: {
+                      type: "OBJECT",
+                      properties: {
+                        nextQuestion: { type: "STRING" },
+                        topic: { type: "STRING" }
+                      },
+                      required: ["nextQuestion", "topic"]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        };
+        ws.send(JSON.stringify(setupMsg));
+      };
+
+      ws.onmessage = async (event) => {
+        try {
+          let textData = event.data;
+          if (textData instanceof Blob) {
+            textData = await textData.text();
+          } else if (textData instanceof ArrayBuffer) {
+            textData = new TextDecoder().decode(textData);
+          }
+          const msg = JSON.parse(textData);
+        
+        if (msg.error) {
+          console.error("Gemini Live WebSocket error:", msg.error);
+          toast.error(`Gemini Live Error: ${msg.error.message || "Unknown error"}`);
+          setPhase("idle");
+          setStarted(false);
+          return;
+        }
+
+        if (msg.setupComplete || msg.setup_complete) {
+          console.log("Gemini Live setup complete acknowledgment received");
+          const last = transcriptRef.current[transcriptRef.current.length - 1];
+          const initialQuestionText = last && last.answer === null ? last.question : initialTranscript[0]?.question;
+          const isResuming = history.length > 0;
+          
+          if (initialQuestionText) {
+            const textToRead = isResuming 
+              ? initialQuestionText 
+              : `Hi ${candidateName}! I'm Puck, and I'll be conducting your interview today. Let's get started. ${initialQuestionText}`;
+            const speakMsg = {
+              clientContent: {
+                turns: [
+                  {
+                    role: "user",
+                    parts: [{ text: "Please read this text exactly as written: " + textToRead }]
+                  }
+                ],
+                turnComplete: true
+              }
+            };
+            ws.send(JSON.stringify(speakMsg));
+            setPhase("speaking");
+          } else {
+            setPhase("listening");
+            startListening();
+          }
+          return;
+        }
+
+        const toolCall = msg.toolCall || msg.tool_call;
+        if (toolCall) {
+          const call = toolCall.functionCalls?.[0] || toolCall.function_calls?.[0];
+          if (call && call.name === "record_turn") {
+            const args = call.args;
+            syncTurnToBackend(args.nextQuestion, liveTranscript, args.topic);
+            setLiveTranscript("");
+            
+            // Respond to the tool call to keep the connection happy
+            ws.send(JSON.stringify({
+              toolResponse: {
+                functionResponses: [
+                  {
+                    id: call.id,
+                    response: { status: "success" }
+                  }
+                ]
+              }
+            }));
+          }
+          return;
+        }
+        
+        const serverContent = msg.serverContent || msg.server_content;
+        if (serverContent) {
+          const modelTurn = serverContent.modelTurn || serverContent.model_turn;
+          const parts = modelTurn?.parts;
+          if (parts) {
+            for (const part of parts) {
+              const inlineData = part.inlineData || part.inline_data;
+              if (inlineData && inlineData.data) {
+                audioPlayerRef.current?.playChunk(inlineData.data);
+                if (phaseRef.current !== "speaking") setPhase("speaking");
+              }
+            }
+          }
+
+          const inputTranscription = serverContent.inputTranscription || serverContent.input_transcription;
+          if (inputTranscription && inputTranscription.text) {
+            setLiveTranscript(inputTranscription.text);
+          }
+
+          if (serverContent.turnComplete || serverContent.turn_complete) {
+            const checkPlaying = setInterval(() => {
+              if (!audioPlayerRef.current?.getIsPlaying()) {
+                clearInterval(checkPlaying);
+                if (phaseRef.current === "speaking") {
+                  setPhase("listening");
+                  startListening();
+                } else if (phaseRef.current === "thinking" && completedRef.current) {
+                  setPhase("done");
+                }
+              }
+            }, 100);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to parse Gemini message:", err);
+      }
+    };
+
+      ws.onerror = (err) => {
+        console.error("Gemini Live WebSocket error:", err);
+        toast.error("WebSocket connection encountered an error (check console)");
+      };
+
+      ws.onclose = (event) => {
+        console.log("Gemini Live WebSocket closed", event.code, event.reason);
+        if (phaseRef.current !== "done") {
+          toast.error(`Session connection lost. Code: ${event.code}, Reason: ${event.reason || "None"}`);
+          setPhase("idle");
+          setStarted(false);
+        }
+      };
+
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start session");
+      setStarted(false);
+      setPhase("idle");
     }
   }
 
@@ -368,8 +525,11 @@ export function VoiceChat({
       const res = await fetch(`/api/interviews/${interviewId}/cancel`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to cancel interview");
-      recognitionRef.current?.stop();
-      stopSpeaking();
+      
+      audioRecorderRef.current?.stop();
+      audioPlayerRef.current?.stop();
+      socketRef.current?.close();
+
       router.push("/dashboard");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to cancel interview");
@@ -383,16 +543,8 @@ export function VoiceChat({
   const tallyLabel =
     phase === "speaking" ? "On air" : phase === "listening" ? "Listening" : phase === "thinking" ? "Thinking" : "Standby";
 
-  // Two equal, full-height tiles stacked top/bottom on the left half of the
-  // screen. `variant="fill"` (see tile.ts) means each tile is exactly the
-  // size its flex-1 wrapper gives it — guaranteed identical width AND
-  // height, unlike the previous side-by-side layout where two independently
-  // `motion.div`-animated tiles ended up visibly mismatched in practice.
-  // Fixed order (interviewer always on top) rather than swapping position
-  // on active speaker — a swap here would be exactly the kind of motion
-  // that reads as jitter at this size; the border/glow already shows who's
-  // talking without moving anything.
   const cameraColumn = (
+
     <div className="flex min-h-0 max-h-[90vh] flex-1 flex-col gap-3 lg:overflow-hidden">
       <div className="min-h-0 flex-1">
         <div className={tileFrameClassName(phase === "speaking", "fill")}>
@@ -485,7 +637,7 @@ export function VoiceChat({
           <DialogHeader>
             <DialogTitle>End this interview?</DialogTitle>
             <DialogDescription>
-              This ends the session right away — there&apos;s no pausing or resuming. It won&apos;t count as
+              This ends the session right away; there&apos;s no pausing or resuming. It won&apos;t count as
               completed and there&apos;s no report for it.
             </DialogDescription>
           </DialogHeader>
@@ -517,7 +669,7 @@ export function VoiceChat({
         // internally, and only once it grows past the space left for it.
         // Below `lg` this collapses to a single stacked, page-scrollable
         // column instead of forcing the split at a width that can't fit it.
-        <div className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-2 lg:overflow-hidden">
+        <div className="grid flex-1 gap-6 lg:min-h-0 lg:grid-cols-[280px_1fr] lg:overflow-hidden">
           {cameraColumn}
 
           <div className="flex min-h-0 flex-1 flex-col gap-4 lg:overflow-hidden">
@@ -540,8 +692,8 @@ export function VoiceChat({
               <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
                 <p className="max-w-md text-sm text-muted-foreground">
                   {isResuming
-                    ? `You're picking back up where you left off — ${history.length} question${history.length === 1 ? "" : "s"} already answered. The interviewer will re-ask the current question.`
-                    : "This interview is a real spoken conversation — your mic drives it, and the interviewer talks back. Nothing is uploaded except your answers."}
+                    ? `You're picking back up where you left off, with ${history.length} question${history.length === 1 ? "" : "s"} already answered. The interviewer will re-ask the current question.`
+                    : "This interview is a real spoken conversation: your mic drives it, and the interviewer talks back. Nothing is uploaded except your answers."}
                 </p>
                 <Button onClick={begin} size="lg" className="studio-glow gap-2">
                   <Mic className="size-4" />
@@ -587,35 +739,46 @@ export function VoiceChat({
                   onClick={submitAnswer}
                   disabled={phase !== "listening"}
                   size="lg"
-                  variant={phase === "listening" ? "default" : "outline"}
+                  variant={phase === "listening" ? "default" : "secondary"}
                   className={
-                    phase === "listening" ? "studio-glow w-56 justify-center gap-2" : "w-56 justify-center gap-2"
+                    phase === "listening" 
+                      ? "studio-glow w-full sm:w-96 justify-center gap-4 bg-red-500 hover:bg-red-600 text-white animate-pulse h-16" 
+                      : "w-full sm:w-96 justify-center gap-4 h-16 opacity-80"
                   }
                 >
                   {phase === "listening" ? (
                     <>
-                      <Square className="size-4" />
-                      Submit answer
+                      <Mic className="size-6" />
+                      <div className="flex flex-col items-start text-left leading-tight">
+                        <span className="font-bold text-[1rem]">Microphone is ON</span>
+                        <span className="text-xs opacity-90 font-normal">Speak your answer, then click here to submit</span>
+                      </div>
                     </>
                   ) : phase === "speaking" ? (
                     <>
-                      <Volume2 className="size-4" />
-                      Speaking…
+                      <Volume2 className="size-6 text-primary" />
+                      <div className="flex flex-col items-start text-left leading-tight">
+                        <span className="font-bold text-[1rem]">Interviewer is speaking...</span>
+                        <span className="text-xs opacity-90 font-normal">Please listen</span>
+                      </div>
                     </>
                   ) : (
                     <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Thinking…
+                      <Loader2 className="size-6 animate-spin" />
+                      <div className="flex flex-col items-start text-left leading-tight">
+                        <span className="font-bold text-[1rem]">Interviewer is thinking...</span>
+                        <span className="text-xs opacity-90 font-normal">Generating the next question</span>
+                      </div>
                     </>
                   )}
                 </Button>
               </div>
             )}
 
+            {started && !completed && transcriptRail}
           </div>
         </div>
       )}
-      {transcriptRail}
     </div>
   );
 }

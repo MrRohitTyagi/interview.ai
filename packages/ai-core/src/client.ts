@@ -1,38 +1,97 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import type { z } from "zod";
 
-let instance: Anthropic | null = null;
+let instance: GoogleGenAI | null = null;
 
-// Lazy so importing this module (e.g. Next.js collecting route page data at
-// build time) never requires ANTHROPIC_API_KEY to be set — only actually
-// calling Claude does.
-function getAnthropic(): Anthropic {
+function getGeminiClient(): GoogleGenAI {
   if (!instance) {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      throw new Error("ANTHROPIC_API_KEY is not set");
+    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not set");
     }
-    instance = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    instance = new GoogleGenAI({ apiKey });
   }
   return instance;
 }
 
-// Gap analysis is the one call that needs real comparative judgment (resume
-// vs. JD fit) — keep it on Sonnet 5. See LLD Section 4.
-export const ANALYSIS_MODEL = "claude-sonnet-5";
+// Map tasks to Gemini models
+export const ANALYSIS_MODEL = "gemini-2.5-flash";
+export const EXTRACTION_MODEL = "gemini-2.5-flash";
+export const REPORT_MODEL = "gemini-2.5-pro";
 
-// Resume/JD analysis is structured extraction from text, not multi-step
-// reasoning — Haiku 4.5 is plenty capable here at roughly half Sonnet's
-// per-token price.
-export const EXTRACTION_MODEL = "claude-haiku-4-5";
+// Helper to recursively map lowercase JSON Schema types to uppercase for Gemini's OpenAPI Schema requirements
+function toGeminiSchema(schema: any): any {
+  if (!schema || typeof schema !== "object") return schema;
 
-// Report generation (Evaluation + Coach Agent) runs once, async, after the
-// interview ends — not latency-critical, and the report is the artifact the
-// candidate actually keeps. Worth the higher-quality tier. See LLD Section 4.
-export const REPORT_MODEL = "claude-opus-4-8";
+  const result: any = { ...schema };
+
+  // Handle union types (like ["string", "null"] generated for optional/nullable Zod fields)
+  if (Array.isArray(result.type)) {
+    const isNullable = result.type.some(
+      (t: any) => typeof t === "string" && t.toLowerCase() === "null"
+    );
+    const mainType = result.type.find(
+      (t: any) => typeof t === "string" && t.toLowerCase() !== "null"
+    );
+
+    if (mainType) {
+      result.type = String(mainType).toUpperCase();
+    } else {
+      result.type = "STRING";
+    }
+
+    if (isNullable) {
+      result.nullable = true;
+    }
+  } else if (typeof result.type === "string") {
+    result.type = result.type.toUpperCase();
+  }
+
+  // Recursively map properties
+  if (result.properties) {
+    const properties: any = {};
+    for (const key of Object.keys(result.properties)) {
+      properties[key] = toGeminiSchema(result.properties[key]);
+    }
+    result.properties = properties;
+  }
+
+  // Recursively map array items
+  if (result.items) {
+    result.items = toGeminiSchema(result.items);
+  }
+
+  // Enforce required field constraints (Gemini only allows required on OBJECT type)
+  if (result.required) {
+    if (result.type === "OBJECT") {
+      if (!Array.isArray(result.required) || result.required.length === 0) {
+        delete result.required;
+      }
+    } else {
+      if (result.properties) {
+        result.type = "OBJECT";
+      } else {
+        delete result.required;
+      }
+    }
+  }
+
+  // Clean up keys unsupported by Gemini OpenAPI schema spec
+  delete result.additionalProperties;
+  delete result.anyOf;
+  delete result.allOf;
+  delete result.oneOf;
+  
+  if (result.describe) {
+    result.description = result.describe;
+    delete result.describe;
+  }
+
+  return result;
+}
 
 /**
- * Forces Claude to return JSON matching `schema` by defining it as a tool
- * and forcing tool_choice — more reliable than asking for JSON in prose.
+ * Forces Gemini to return JSON matching `schema` using responseSchema
  */
 export async function extractStructured<T>(params: {
   system: string;
@@ -43,54 +102,60 @@ export async function extractStructured<T>(params: {
   zodSchema: z.ZodType<T>;
   model?: string;
   maxTokens?: number;
-  // Most tool-forced schema-filling calls don't benefit from extended
-  // thinking (there's no multi-step reasoning to do). Calls that involve
-  // real judgment — e.g. the Interview Agent deciding whether to follow up —
-  // can opt back in.
   allowThinking?: boolean;
 }): Promise<T> {
-  const response = await getAnthropic().messages.create({
-    model: params.model ?? ANALYSIS_MODEL,
-    max_tokens: params.maxTokens ?? 2048,
-    thinking: params.allowThinking ? { type: "adaptive" } : { type: "disabled" },
-    system: params.system,
-    messages: [{ role: "user", content: params.prompt }],
-    tools: [
-      {
-        name: params.toolName,
-        description: params.toolDescription,
-        // strict: true makes the API guarantee tool_use.input validates
-        // exactly against the schema (type, required fields, no extras) —
-        // without it, tool-calling is only best-effort schema-following, and
-        // edge cases (e.g. a near-empty array) can come back the wrong shape.
-        strict: true,
-        input_schema: {
-          type: "object",
-          additionalProperties: false,
-          ...params.inputSchema,
-        },
-      },
-    ],
-    tool_choice: { type: "tool", name: params.toolName },
+  const client = getGeminiClient();
+
+  // Map incoming model names to Gemini equivalents
+  let modelName = params.model ?? ANALYSIS_MODEL;
+  if (modelName === "claude-sonnet-5") {
+    modelName = ANALYSIS_MODEL;
+  } else if (modelName === "claude-haiku-4-5") {
+    modelName = EXTRACTION_MODEL;
+  } else if (modelName === "claude-opus-4-8") {
+    modelName = REPORT_MODEL;
+  }
+
+  const geminiSchema = toGeminiSchema(params.inputSchema);
+
+  const response = await client.models.generateContent({
+    model: modelName,
+    contents: params.prompt,
+    config: {
+      systemInstruction: params.system,
+      responseMimeType: "application/json",
+      responseSchema: geminiSchema,
+      maxOutputTokens: params.maxTokens,
+      // Configure thinking config if allowThinking is true for 2.5 Pro
+      thinkingConfig: params.allowThinking && modelName === REPORT_MODEL 
+        ? { thinkingBudget: 2048 } 
+        : undefined,
+    },
   });
 
   if (process.env.NODE_ENV !== "production") {
     console.log(
-      `[claude] ${params.toolName} — model=${response.model} in=${response.usage.input_tokens} out=${response.usage.output_tokens} stop=${response.stop_reason}`
+      `[gemini] ${params.toolName} — model=${modelName} response=${response.text ? 'received' : 'empty'}`
     );
   }
 
-  if (response.stop_reason === "max_tokens") {
-    throw new Error(
-      `Claude's response for ${params.toolName} was cut off at the max_tokens limit ` +
-        `(${params.maxTokens ?? 2048}) before finishing — raise maxTokens for this call.`
-    );
+  const text = response.text;
+  if (!text) {
+    throw new Error(`Gemini did not return any text for ${params.toolName}`);
   }
 
-  const toolUse = response.content.find((block) => block.type === "tool_use");
-  if (!toolUse || toolUse.type !== "tool_use") {
-    throw new Error(`Claude did not return a tool_use block for ${params.toolName}`);
+  let cleanText = text.trim();
+  if (cleanText.startsWith("```")) {
+    cleanText = cleanText.replace(/^```[a-zA-Z]*\n/, "").replace(/\n```$/, "").trim();
+  }
+  
+  const firstBrace = cleanText.indexOf("{");
+  const lastBrace = cleanText.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    cleanText = cleanText.substring(firstBrace, lastBrace + 1);
   }
 
-  return params.zodSchema.parse(toolUse.input);
+  const parsedJson = JSON.parse(cleanText);
+  return params.zodSchema.parse(parsedJson);
 }
+
