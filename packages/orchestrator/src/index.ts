@@ -11,6 +11,7 @@ import {
   applyCreditDelta,
   CREDIT_COSTS,
   db,
+  InsufficientCreditsError,
   interviews,
   interviewStates,
   jobDescriptions,
@@ -170,8 +171,21 @@ export async function processInterviewTurn(
   // Charged once per turn regardless of which action Claude picked
   // (follow_up / next_topic / wrap_up all represent one processed answer)
   // — right after the Claude call that's the actual cost driver succeeded,
-  // never on a failed call. Token.LLD.md Section 9.
-  await applyCreditDelta(userId, -CREDIT_COSTS.interview_turn, "interview_turn", interviewId);
+  // never on a failed call. Token.LLD.md Section 9. If the charge itself
+  // can't go through (balance already at/near zero), the turn still
+  // proceeds — Section 4's "Mid-interview behavior" is explicit that a
+  // live spoken interview must never be cut off mid-conversation over
+  // credits; new interview creation is what's gated on balance, not an
+  // answer already in flight.
+  try {
+    await applyCreditDelta(userId, -CREDIT_COSTS.interview_turn, "interview_turn", interviewId);
+  } catch (err) {
+    if (err instanceof InsufficientCreditsError) {
+      console.warn(`[interview ${interviewId}] turn charge failed (insufficient balance): ${err.message}`);
+    } else {
+      throw err;
+    }
+  }
 
   let action = turn.action;
   let message = turn.nextQuestion;
