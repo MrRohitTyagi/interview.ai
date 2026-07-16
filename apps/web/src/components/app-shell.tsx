@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import { signOut } from "next-auth/react";
 import {
+  BriefcaseBusiness,
   LayoutDashboard,
   Mic,
   Sheet,
@@ -16,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   History,
+  Code2,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -71,9 +73,21 @@ export function AppShell({ children, credits = 0, userName = "User", userRole = 
       category: "Workspace",
     },
     {
+      name: "Job Board",
+      href: "/jobs",
+      icon: BriefcaseBusiness,
+      category: "Workspace",
+    },
+    {
       name: "Interview Logs",
       href: "/history",
       icon: History,
+      category: "Workspace",
+    },
+    {
+      name: "Coding Arena",
+      href: "/coding",
+      icon: Code2,
       category: "Workspace",
     },
     {
@@ -104,7 +118,7 @@ export function AppShell({ children, credits = 0, userName = "User", userRole = 
 
   const sidebarContent = (
     <div className="flex h-full flex-col justify-between bg-card text-card-foreground">
-      <div className="flex flex-col gap-6 px-4 py-6">
+      <div className="flex flex-col gap-6 px-4 pt-6 pb-8 overflow-y-auto flex-1">
         {/* Brand Logo & Toggle */}
         <div className={cn("flex items-center px-2 transition-all", collapsed ? "flex-col gap-4" : "justify-between")}>
           {collapsed ? (
@@ -171,7 +185,7 @@ export function AppShell({ children, credits = 0, userName = "User", userRole = 
         </Link>
 
         {/* Navigation Groups */}
-        <nav className="flex flex-col gap-5">
+        <nav className="flex flex-col gap-4">
           {categories.map((category) => (
             <div key={category} className="flex flex-col gap-1">
               {!collapsed && (
@@ -191,7 +205,7 @@ export function AppShell({ children, credits = 0, userName = "User", userRole = 
                         href={item.href}
                         title={item.name}
                         className={cn(
-                          "group flex items-center rounded-lg px-2.5 py-2 text-xs font-medium transition-all",
+                          "group flex items-center rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all",
                           collapsed ? "justify-center" : "gap-3",
                           isActive
                             ? "bg-secondary text-foreground font-semibold"

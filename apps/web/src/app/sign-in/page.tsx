@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const VALUE_PROPS = [
-  { icon: Mic, title: "Bidirectional Speech", desc: "Speak naturally; our Gemini Live interface follows up and guides topics in real time." },
+  { icon: Mic, title: "Bidirectional Speech", desc: "Speak naturally; our AI Voice interface follows up and guides topics in real time." },
   { icon: Award, title: "Calibrated Scorecard", desc: "Receive granular scores for communication and technical depth as soon as you finish." },
   { icon: RotateCcw, title: "Fluid Sessions", desc: "Pause, resume, or restart at any time: your session history is fully stateful." },
 ];
@@ -167,7 +167,7 @@ export default function SignInPage() {
               Speak to the <span className="accent-text font-serif italic font-medium">interview engine</span>
             </h1>
             <p className="mt-2 text-xs text-muted-foreground max-w-[38ch] leading-relaxed">
-              Experience the first multimodal voice-to-voice mock platform built directly on Google Gemini Live.
+              Experience the first multimodal voice-to-voice mock platform built directly on advanced conversational AI.
             </p>
 
             {/* Values / Features list */}

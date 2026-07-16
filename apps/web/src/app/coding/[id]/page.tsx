@@ -26,8 +26,9 @@ export default function CodingWorkspacePage({ params }: { params: Promise<{ id: 
   const [logs, setLogs] = useState<string[]>(["Terminal ready. Waiting for execution..."]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<"testcases" | "terminal">("testcases");
+  const [activeTab, setActiveTab] = useState<"testcases" | "terminal" | "feedback">("testcases");
   const [testResults, setTestResults] = useState<any[] | null>(null);
+  const [aiReview, setAiReview] = useState<any>(null);
   const [activeCaseIndex, setActiveCaseIndex] = useState(0);
 
   const handleRunCode = async () => {
@@ -111,6 +112,7 @@ export default function CodingWorkspacePage({ params }: { params: Promise<{ id: 
     if (isSuccess) {
       toast.success("Solution Accepted! All test cases passed.", {
         duration: 4000,
+        position: "bottom-left",
         style: { backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#34d399", borderColor: "rgba(16, 185, 129, 0.3)" },
         className: "font-medium"
       });
@@ -128,33 +130,32 @@ export default function CodingWorkspacePage({ params }: { params: Promise<{ id: 
 
   const handleSubmitToAI = async () => {
     setIsSubmitting(true);
-    const loadingToast = toast.loading("Gemini is reviewing your architecture...");
+    const loadingToast = toast.loading("AI Engine is reviewing your architecture...", { position: "bottom-left" });
     try {
       const review = await submitBrainstormCodeAction(question.id, question.title, question.description, code);
       toast.dismiss(loadingToast);
       
-      toast.success(
-        <div className="flex flex-col gap-2 min-w-[300px]">
-          <div className="font-bold flex items-center justify-between border-b border-primary/20 pb-2">
-            <span>Score: {review.score}/100</span>
-            <Badge variant={review.isOptimal ? "default" : "destructive"}>{review.isOptimal ? "Optimal" : "Suboptimal"}</Badge>
-          </div>
-          <div className="text-xs font-mono text-muted-foreground flex items-center justify-between mt-1">
-            <span>Time: {review.timeComplexity}</span>
-            <span>Space: {review.spaceComplexity}</span>
-          </div>
-          <p className="text-sm mt-2 leading-relaxed">{review.feedback}</p>
-          {review.improvements.length > 0 && (
-            <ul className="text-xs list-disc pl-4 mt-1 text-muted-foreground">
-              {review.improvements.map((imp, i) => <li key={i}>{imp}</li>)}
-            </ul>
-          )}
-        </div>,
-        { duration: 15000, className: "bg-card border border-primary/30" }
-      );
+      setAiReview(review);
+      setActiveTab("feedback");
+      
+      if (review.score === 10 || review.score === 100) {
+        localStorage.setItem(`completed-${question.id}`, "true");
+        toast.success("Perfect Architecture! Solution Accepted.", {
+          duration: 4000,
+          position: "bottom-left",
+          style: { backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#34d399", borderColor: "rgba(16, 185, 129, 0.3)" },
+          className: "font-medium"
+        });
+      } else {
+        toast("Review Complete", {
+           description: "Check the AI Feedback tab for details.",
+           position: "bottom-left",
+           className: "bg-card border border-primary/30 text-foreground"
+        });
+      }
     } catch (e) {
       toast.dismiss(loadingToast);
-      toast.error("Failed to reach Gemini.");
+      toast.error("Failed to reach AI Engine.", { position: "bottom-left" });
     }
     setIsSubmitting(false);
   };
@@ -243,6 +244,13 @@ export default function CodingWorkspacePage({ params }: { params: Promise<{ id: 
                            <Terminal className="size-3.5" />
                            Console
                         </button>
+                        <button 
+                          onClick={() => setActiveTab("feedback")}
+                          className={cn("text-xs font-mono uppercase tracking-widest flex items-center gap-2 pb-1 border-b-2 transition-all", activeTab === "feedback" ? "text-white border-primary" : "text-muted-foreground border-transparent hover:text-white")}
+                        >
+                           <Sparkles className="size-3.5" />
+                           AI Feedback
+                        </button>
                      </div>
                      
                      <div className="flex gap-2 items-center">
@@ -328,6 +336,74 @@ export default function CodingWorkspacePage({ params }: { params: Promise<{ id: 
                              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground h-full opacity-50">
                                <Beaker className="size-8 mb-2 opacity-50" />
                                <p className="text-sm font-mono">Run your code to view test case results</p>
+                             </div>
+                           )}
+                        </div>
+                     )}
+
+                     {/* Feedback Tab */}
+                     {activeTab === "feedback" && (
+                        <div className="absolute inset-0 overflow-y-auto p-6 font-sans">
+                           {aiReview ? (
+                             <div className="flex flex-col gap-4 max-w-2xl mx-auto">
+                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                  <h3 className="text-xl font-medium text-white flex items-center gap-2">
+                                     <Sparkles className="size-5 text-primary" />
+                                     Architecture Review
+                                  </h3>
+                                  <div className="flex items-center gap-3">
+                                     <Badge variant="outline" className={cn("px-3 py-1 font-mono text-xs shadow-sm", aiReview.score === 10 || aiReview.score === 100 ? "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" : "text-primary border-primary/30 bg-primary/10")}>
+                                       Score: {aiReview.score === 100 ? 10 : aiReview.score}/10
+                                     </Badge>
+                                     <Badge variant={aiReview.isOptimal ? "default" : "destructive"}>
+                                       {aiReview.isOptimal ? "Optimal Approach" : "Suboptimal"}
+                                     </Badge>
+                                  </div>
+                               </div>
+
+                               {/* Completion Note */}
+                               <div className="bg-secondary/40 border border-border/50 p-3 rounded-lg flex items-start gap-2">
+                                  <Sparkles className="size-4 text-primary mt-0.5 shrink-0" />
+                                  <p className="text-xs text-muted-foreground">
+                                    <strong className="text-foreground">Note:</strong> You need a perfect 10/10 score from the AI to successfully complete and submit this challenge.
+                                  </p>
+                               </div>
+                               
+                               <div className="grid grid-cols-2 gap-4 mt-2">
+                                  <div className="bg-[#111] border border-border/40 p-4 rounded-xl">
+                                     <span className="text-xs uppercase font-mono text-muted-foreground block mb-1">Time Complexity</span>
+                                     <span className="font-mono text-sm text-primary">{aiReview.timeComplexity}</span>
+                                  </div>
+                                  <div className="bg-[#111] border border-border/40 p-4 rounded-xl">
+                                     <span className="text-xs uppercase font-mono text-muted-foreground block mb-1">Space Complexity</span>
+                                     <span className="font-mono text-sm text-primary">{aiReview.spaceComplexity}</span>
+                                  </div>
+                               </div>
+
+                               <div className="mt-4 bg-[#111] border border-border/40 p-5 rounded-xl shadow-sm">
+                                  <h4 className="text-sm font-medium text-white mb-3">Feedback</h4>
+                                  <p className="text-sm text-muted-foreground leading-relaxed">
+                                    {aiReview.feedback}
+                                  </p>
+                               </div>
+
+                               {aiReview.improvements && aiReview.improvements.length > 0 && (
+                                  <div className="mt-4 bg-red-500/5 border border-red-500/20 p-5 rounded-xl shadow-sm">
+                                     <h4 className="text-sm font-medium text-red-400 mb-3 flex items-center gap-2">
+                                       Areas for Improvement
+                                     </h4>
+                                     <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-2">
+                                        {aiReview.improvements.map((imp: string, i: number) => (
+                                          <li key={i}>{imp}</li>
+                                        ))}
+                                     </ul>
+                                  </div>
+                               )}
+                             </div>
+                           ) : (
+                             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                                <Sparkles className="size-8 opacity-20 mb-4" />
+                                <p className="text-sm font-medium">Submit your solution to get an AI architecture review.</p>
                              </div>
                            )}
                         </div>

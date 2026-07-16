@@ -40,14 +40,26 @@ function formatRelativeTime(date: Date): string {
   return `${Math.floor(diffDays / 30)}mo ago`;
 }
 
-function StatusBadge({ r }: { r: { status: string; reportStatus: string | null; technicalScore: number | null; communicationScore: number | null } }) {
+function StatusBadge({
+  r,
+}: {
+  r: {
+    status: string;
+    reportStatus: string | null;
+    technicalScore: number | null;
+    communicationScore: number | null;
+  };
+}) {
   const isAbandoned = r.status === "abandoned";
   const isCompleted = r.status === "completed";
   const hasReport = r.reportStatus === "ready" && r.technicalScore !== null;
 
   if (isAbandoned) {
     return (
-      <Badge variant="outline" className="gap-1 text-muted-foreground uppercase font-mono text-[0.62rem]">
+      <Badge
+        variant="outline"
+        className="gap-1 text-muted-foreground uppercase font-mono text-[0.62rem]"
+      >
         <Ban className="size-3" />
         Void
       </Badge>
@@ -55,7 +67,10 @@ function StatusBadge({ r }: { r: { status: string; reportStatus: string | null; 
   }
   if (!isCompleted) {
     return (
-      <Badge variant="secondary" className="gap-1 text-primary uppercase font-mono text-[0.62rem]">
+      <Badge
+        variant="secondary"
+        className="gap-1 text-primary uppercase font-mono text-[0.62rem]"
+      >
         <span className="size-1.5 animate-pulse rounded-full bg-primary" />
         In progress
       </Badge>
@@ -66,13 +81,20 @@ function StatusBadge({ r }: { r: { status: string; reportStatus: string | null; 
       <span className="flex items-center gap-1.5 font-mono text-sm text-primary font-semibold">
         <Award className="size-3.5 text-primary" />
         Scores: {r.technicalScore}
-        {r.communicationScore !== null && <span className="text-muted-foreground font-normal">/{r.communicationScore}</span>}
+        {r.communicationScore !== null && (
+          <span className="text-muted-foreground font-normal">
+            /{r.communicationScore}
+          </span>
+        )}
       </span>
     );
   }
   if (r.reportStatus === "generating") {
     return (
-      <Badge variant="secondary" className="gap-1 font-mono text-[0.62rem] uppercase">
+      <Badge
+        variant="secondary"
+        className="gap-1 font-mono text-[0.62rem] uppercase"
+      >
         <Loader2 className="size-3 animate-spin" />
         Generating
       </Badge>
@@ -80,14 +102,20 @@ function StatusBadge({ r }: { r: { status: string; reportStatus: string | null; 
   }
   if (r.reportStatus === "failed") {
     return (
-      <Badge variant="destructive" className="gap-1 font-mono text-[0.62rem] uppercase">
+      <Badge
+        variant="destructive"
+        className="gap-1 font-mono text-[0.62rem] uppercase"
+      >
         <AlertTriangle className="size-3" />
         Failed
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="gap-1 text-muted-foreground font-mono text-[0.62rem] uppercase">
+    <Badge
+      variant="outline"
+      className="gap-1 text-muted-foreground font-mono text-[0.62rem] uppercase"
+    >
       <Clock className="size-3" />
       Pending
     </Badge>
@@ -118,7 +146,11 @@ export default async function HistoryPage() {
       .leftJoin(reports, eq(reports.interviewId, interviews.id))
       .where(eq(interviews.userId, userId))
       .orderBy(desc(interviews.createdAt)),
-    db.select({ creditBalance: users.creditBalance }).from(users).where(eq(users.id, userId)).limit(1),
+    db
+      .select({ creditBalance: users.creditBalance })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1),
   ]);
 
   return (
@@ -134,7 +166,8 @@ export default async function HistoryPage() {
             Interview Logs
           </h1>
           <p className="text-muted-foreground text-sm">
-            Review past scorecards, check focus areas, or resume ongoing practice sessions.
+            Review past scorecards, check focus areas, or resume ongoing
+            practice sessions.
           </p>
         </div>
 
@@ -143,31 +176,44 @@ export default async function HistoryPage() {
             {recentInterviews.map((r) => {
               const isAbandoned = r.status === "abandoned";
               const isCompleted = r.status === "completed";
-              const hasReport = r.reportStatus === "ready" && r.technicalScore !== null;
-              
+              const hasReport =
+                r.reportStatus === "ready" && r.technicalScore !== null;
+
               return (
-                <Card key={r.id} className="studio-panel studio-glow hover:border-border transition-all duration-300">
-                  <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <Card
+                  key={r.id}
+                  className="studio-panel studio-glow hover:border-border transition-all duration-300"
+                >
+                  <CardContent className="px-5 py-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex flex-col gap-1.5 min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="secondary" className="font-semibold text-[0.68rem] tracking-wide uppercase px-2 py-0.5">
+                        <Badge
+                          variant="secondary"
+                          className="font-semibold text-[0.68rem] tracking-wide uppercase px-2 py-0.5"
+                        >
                           {TYPE_LABELS[r.type] ?? r.type}
                         </Badge>
-                        <span className="text-xs text-muted-foreground capitalize font-mono">{r.difficulty}</span>
-                        <span className="text-xs text-muted-foreground font-mono">· {r.durationMinutes} min</span>
-                        <span className="text-xs text-muted-foreground font-mono">· {formatRelativeTime(r.createdAt)}</span>
+                        <span className="text-xs text-muted-foreground capitalize font-mono">
+                          {r.difficulty}
+                        </span>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          · {r.durationMinutes} min
+                        </span>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          · {formatRelativeTime(r.createdAt)}
+                        </span>
                       </div>
-                      
+
                       {hasReport && r.recommendation ? (
                         <p className="text-xs text-muted-foreground italic truncate max-w-[550px] mt-1 pr-4">
                           &ldquo;{r.recommendation}&rdquo;
                         </p>
                       ) : (
                         <p className="text-xs text-muted-foreground/60 mt-1">
-                          {isAbandoned 
-                            ? "Session was cancelled before completion." 
-                            : !isCompleted 
-                              ? "Session is active and awaiting inputs." 
+                          {isAbandoned
+                            ? "Session was cancelled before completion."
+                            : !isCompleted
+                              ? "Session is active and awaiting inputs."
                               : "Scores are currently compiling."}
                         </p>
                       )}
@@ -175,18 +221,28 @@ export default async function HistoryPage() {
 
                     <div className="flex items-center gap-4 self-end sm:self-auto shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-border/40 w-full sm:w-auto justify-between sm:justify-end">
                       <StatusBadge r={r} />
-                      
+
                       <div className="flex items-center gap-1.5">
                         {isAbandoned ? (
                           <DeleteInterviewButton interviewId={r.id} />
                         ) : isCompleted ? (
-                          <Button render={<Link href={`/interview/${r.id}/report`} />} size="sm" variant="outline" className="h-8 text-xs font-mono uppercase tracking-wide">
+                          <Button
+                            render={<Link href={`/interview/${r.id}/report`} />}
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs font-mono uppercase tracking-wide"
+                          >
                             View Report
                           </Button>
                         ) : (
                           <div className="flex items-center gap-1.5">
                             <EndInterviewButton interviewId={r.id} />
-                            <Button render={<Link href={`/interview/${r.id}`} />} variant="default" size="sm" className="gap-1 px-3 h-8 text-xs font-mono uppercase tracking-wider studio-glow">
+                            <Button
+                              render={<Link href={`/interview/${r.id}`} />}
+                              variant="default"
+                              size="sm"
+                              className="gap-1 px-3 h-8 text-xs font-mono uppercase tracking-wider studio-glow"
+                            >
                               Resume
                               <ArrowRight className="size-3" />
                             </Button>
@@ -203,12 +259,18 @@ export default async function HistoryPage() {
           <div className="flex flex-col items-center gap-3 rounded-xl border border-border py-16 text-center bg-card/20">
             <Sparkles className="size-7 text-muted-foreground/60 animate-pulse" />
             <div className="flex flex-col gap-1 px-4">
-              <h3 className="text-sm font-semibold">No interviews logged yet</h3>
+              <h3 className="text-sm font-semibold">
+                No interviews logged yet
+              </h3>
               <p className="text-xs text-muted-foreground max-w-sm">
-                Get started by comparing your resume with a JD or launching a direct mockup session.
+                Get started by comparing your resume with a JD or launching a
+                direct mockup session.
               </p>
             </div>
-            <Button render={<Link href="/interview/new" />} className="studio-glow gap-2 mt-2">
+            <Button
+              render={<Link href="/interview/new" />}
+              className="studio-glow gap-2 mt-2"
+            >
               <Mic className="size-4" />
               Start Your First Interview
             </Button>

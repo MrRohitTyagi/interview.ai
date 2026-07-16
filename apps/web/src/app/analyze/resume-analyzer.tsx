@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { GapAnalysis, JDAnalysis, ResumeAnalysis } from "@ai-interviewer/ai-core";
 import { AnimatePresence, motion } from "motion/react";
@@ -64,6 +64,17 @@ export function ResumeAnalyzer({
         }
       : null
   );
+
+  // A job picked on /jobs hands its JD over via sessionStorage — a JD is too
+  // long to survive a URL. Consumed once, then cleared.
+  useEffect(() => {
+    const prefill = sessionStorage.getItem("jobs:prefill-jd");
+    if (prefill) {
+      sessionStorage.removeItem("jobs:prefill-jd");
+      setJdText(prefill);
+      toast.info("Job description imported — upload a resume to see your fit.");
+    }
+  }, []);
 
   const jdReady = jdText.trim().length >= MIN_JD_LENGTH;
 

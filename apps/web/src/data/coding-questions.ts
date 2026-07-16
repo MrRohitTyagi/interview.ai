@@ -77,7 +77,7 @@ export const CODING_QUESTIONS: CodingQuestion[] = [
        AI Brainstorming Question
     </div>
     <p class="text-xs text-primary/80 leading-relaxed">
-       Because this is a conceptual architecture question, there are many correct ways to implement it. Your code will not be strictly unit-tested. Instead, it will be sent to Gemini for a structural review of your Time/Space Complexity and Software Engineering patterns.
+       Because this is a conceptual architecture question, there are many correct ways to implement it. Your code will not be strictly unit-tested. Instead, it will be sent to our AI Engine for a structural review of your Time/Space Complexity and Software Engineering patterns.
     </p>
   </div>
 </div>
@@ -147,7 +147,7 @@ function reverseList(head) {
        AI Brainstorming Question
     </div>
     <p class="text-xs text-primary/80 leading-relaxed">
-       Consider using a Token Bucket or Sliding Window Log algorithm. Your code will be reviewed by Gemini for architecture choices and memory limits.
+       Consider using a Token Bucket or Sliding Window Log algorithm. Your code will be reviewed by our AI Engine for architecture choices and memory limits.
     </p>
   </div>
 </div>
@@ -208,7 +208,7 @@ function reverseList(head) {
        AI Brainstorming Question
     </div>
     <p class="text-xs text-primary/80 leading-relaxed">
-       Consider edge cases like how you handle the execution context (<code>this</code>) and arguments. Your code will be reviewed by Gemini.
+       Consider edge cases like how you handle the execution context (<code>this</code>) and arguments. Your code will be reviewed by our AI Engine.
     </p>
   </div>
 </div>
