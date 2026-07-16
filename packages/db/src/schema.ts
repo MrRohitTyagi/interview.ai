@@ -8,6 +8,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -36,6 +37,10 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash"),
   role: userRoleEnum("role").notNull().default("candidate"),
   organizationId: uuid("organization_id").references(() => organizations.id),
+  // The cached, fast-read balance — always kept in sync with
+  // credit_transactions by applyCreditDelta (src/credits.ts), which is the
+  // only code allowed to write to this column. See Token.LLD.md Section 3.
+  creditBalance: integer("credit_balance").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -295,6 +300,63 @@ export const reports = pgTable("reports", {
 });
 
 // ---------------------------------------------------------------------------
+// Credits — see Token.LLD.md for the full design
+// ---------------------------------------------------------------------------
+
+export const creditReasonEnum = pgEnum("credit_reason", [
+  "resume_analysis",
+  "jd_analysis",
+  "gap_analysis",
+  "interview_plan",
+  "interview_turn",
+  "report_generation",
+  "signup_grant",
+  "redeem_code",
+  "admin_grant",
+]);
+
+// Append-only — never updated or deleted. balanceAfter is a snapshot so
+// history reads never need to recompute a running total.
+export const creditTransactions = pgTable("credit_transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  delta: integer("delta").notNull(),
+  reason: creditReasonEnum("reason").notNull(),
+  interviewId: uuid("interview_id").references(() => interviews.id, { onDelete: "set null" }),
+  balanceAfter: integer("balance_after").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const redeemCodes = pgTable("redeem_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  code: text("code").notNull().unique(),
+  credits: integer("credits").notNull(),
+  maxUses: integer("max_uses").notNull(),
+  usedCount: integer("used_count").notNull().default(0),
+  createdBy: uuid("created_by")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const redeemCodeUses = pgTable(
+  "redeem_code_uses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    codeId: uuid("code_id")
+      .notNull()
+      .references(() => redeemCodes.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique().on(table.codeId, table.userId)]
+);
+
+// ---------------------------------------------------------------------------
 // Relations
 // ---------------------------------------------------------------------------
 
@@ -306,6 +368,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   resumes: many(resumes),
   jobDescriptions: many(jobDescriptions),
   interviews: many(interviews),
+  creditTransactions: many(creditTransactions),
 }));
 
 export const resumesRelations = relations(resumes, ({ one, many }) => ({
@@ -344,4 +407,19 @@ export const questionsRelations = relations(questions, ({ one, many }) => ({
 export const answersRelations = relations(answers, ({ one }) => ({
   question: one(questions, { fields: [answers.questionId], references: [questions.id] }),
   evaluation: one(evaluations, { fields: [answers.id], references: [evaluations.answerId] }),
+}));
+
+export const creditTransactionsRelations = relations(creditTransactions, ({ one }) => ({
+  user: one(users, { fields: [creditTransactions.userId], references: [users.id] }),
+  interview: one(interviews, { fields: [creditTransactions.interviewId], references: [interviews.id] }),
+}));
+
+export const redeemCodesRelations = relations(redeemCodes, ({ one, many }) => ({
+  creator: one(users, { fields: [redeemCodes.createdBy], references: [users.id] }),
+  uses: many(redeemCodeUses),
+}));
+
+export const redeemCodeUsesRelations = relations(redeemCodeUses, ({ one }) => ({
+  code: one(redeemCodes, { fields: [redeemCodeUses.codeId], references: [redeemCodes.id] }),
+  user: one(users, { fields: [redeemCodeUses.userId], references: [users.id] }),
 }));
