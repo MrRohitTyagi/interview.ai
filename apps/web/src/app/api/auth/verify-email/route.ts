@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { applyCreditDelta, db, SIGNUP_GRANT_CREDITS, users } from "@ai-interviewer/db";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { verifyOtp } from "@/lib/otp";
@@ -30,13 +30,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
-  // Grant only on the *first* verification — a user requesting a fresh OTP
-  // and re-submitting it after already being verified must not re-grant.
-  const alreadyVerified = !!user.emailVerified;
+  // Atomic claim: only matches a row that is still unverified, and RETURNING
+  // tells us whether *this* request was the one that actually flipped it —
+  // not a separate read-then-write, which two near-simultaneous requests
+  // (double-click, client retry, two valid OTPs from two "resend" calls)
+  // could both pass and both grant credits for.
+  const [claimed] = await db
+    .update(users)
+    .set({ emailVerified: new Date() })
+    .where(and(eq(users.id, user.id), isNull(users.emailVerified)))
+    .returning({ id: users.id });
 
-  await db.update(users).set({ emailVerified: new Date() }).where(eq(users.id, user.id));
-
-  if (!alreadyVerified) {
+  if (claimed) {
     await applyCreditDelta(user.id, SIGNUP_GRANT_CREDITS, "signup_grant");
   }
 
