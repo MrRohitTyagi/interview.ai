@@ -8,6 +8,8 @@ import {
 } from "@ai-interviewer/ai-core";
 import {
   answers,
+  applyCreditDelta,
+  CREDIT_COSTS,
   db,
   interviews,
   interviewStates,
@@ -164,6 +166,12 @@ export async function processInterviewTurn(
     customInstructions: interview.customInstructions,
     candidateName,
   });
+
+  // Charged once per turn regardless of which action Claude picked
+  // (follow_up / next_topic / wrap_up all represent one processed answer)
+  // — right after the Claude call that's the actual cost driver succeeded,
+  // never on a failed call. Token.LLD.md Section 9.
+  await applyCreditDelta(userId, -CREDIT_COSTS.interview_turn, "interview_turn", interviewId);
 
   let action = turn.action;
   let message = turn.nextQuestion;
