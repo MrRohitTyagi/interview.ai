@@ -91,7 +91,7 @@ const PLAN_TOOL_SCHEMA = {
   required: ["topics", "openingQuestion"],
 };
 
-function topicCountForDuration(durationMinutes: number): number {
+export function topicCountForDuration(durationMinutes: number): number {
   return Math.min(8, Math.max(4, Math.round(durationMinutes / 4)));
 }
 

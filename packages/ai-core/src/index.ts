@@ -3,6 +3,7 @@ export { analyzeJobDescription, jdAnalysisSchema, type JDAnalysis } from "./job-
 export { analyzeGap, gapAnalysisSchema, type GapAnalysis } from "./gap-analysis";
 export {
   generateInterviewPlan,
+  topicCountForDuration,
   interviewPlanSchema,
   interviewTypeSchema,
   plannedTopicSchema,
