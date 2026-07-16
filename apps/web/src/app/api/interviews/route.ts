@@ -1,12 +1,24 @@
 import { NextResponse } from "next/server";
 import {
   generateInterviewPlan,
+  topicCountForDuration,
   interviewTypeSchema,
   type GapAnalysis,
   type JDAnalysis,
   type ResumeAnalysis,
 } from "@ai-interviewer/ai-core";
-import { db, interviews, interviewStates, jobDescriptions, questions, resumes } from "@ai-interviewer/db";
+import {
+  applyCreditDelta,
+  CREDIT_COSTS,
+  db,
+  estimateInterviewCost,
+  interviews,
+  interviewStates,
+  jobDescriptions,
+  questions,
+  resumes,
+  users,
+} from "@ai-interviewer/db";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -66,6 +78,27 @@ export async function POST(req: Request) {
     jd = { id: jdRow.id, parsedJson: jdRow.parsedJson as JDAnalysis };
   }
 
+  // Pre-flight affordability check — before any Claude call, so a request
+  // that was always going to be rejected never spends anything. Uses the
+  // same expected-case formula documented in Token.LLD.md Section 4.
+  const estimatedTopicCount = topicCountForDuration(parsed.data.durationMinutes);
+  const estimatedCost = estimateInterviewCost(estimatedTopicCount);
+  const [currentUser] = await db
+    .select({ creditBalance: users.creditBalance })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .limit(1);
+  if (!currentUser || currentUser.creditBalance < estimatedCost) {
+    return NextResponse.json(
+      {
+        error: "Not enough credits to start this interview",
+        needed: estimatedCost,
+        balance: currentUser?.creditBalance ?? 0,
+      },
+      { status: 402 }
+    );
+  }
+
   const plan = await generateInterviewPlan({
     resume: resume.parsedJson as ResumeAnalysis,
     jd: jd?.parsedJson ?? null,
@@ -118,6 +151,8 @@ export async function POST(req: Request) {
     currentTopicIndex: 0,
     followUpsOnCurrentTopic: 0,
   });
+
+  await applyCreditDelta(session.user.id, -CREDIT_COSTS.interview_plan, "interview_plan", interview.id);
 
   return NextResponse.json({
     id: interview.id,
