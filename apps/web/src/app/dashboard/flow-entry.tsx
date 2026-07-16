@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Mic, Sheet } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 // Tailwind can only see literal class strings at build time — a template
 // literal like `bg-${tint}/12` never gets generated, so each combination

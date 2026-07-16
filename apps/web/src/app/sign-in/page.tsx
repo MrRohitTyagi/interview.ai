@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { signIn } from "next-auth/react";
-import { Award, KeyRound, Loader2, Mail, Mic, RotateCcw, User, Disc, Flame } from "lucide-react";
+import { Award, KeyRound, Loader2, Mail, Mic, RotateCcw, User, Disc } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -172,7 +172,7 @@ export default function SignInPage() {
 
             {/* Values / Features list */}
             <div className="mt-6 flex flex-col gap-4">
-              {VALUE_PROPS.map(({ icon: Icon, title, desc }, i) => (
+              {VALUE_PROPS.map(({ icon: Icon, title, desc }) => (
                 <div key={title} className="flex gap-3 items-start">
                   <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-card border border-border text-primary studio-glow">
                     <Icon className="size-3.5" />
@@ -200,16 +200,16 @@ export default function SignInPage() {
               <span className="font-mono text-[0.58rem] text-primary">PCM_16K_MONO</span>
             </div>
             <div className="flex items-end gap-1 h-8 px-2 justify-center">
-              {[25, 45, 15, 60, 35, 75, 40, 90, 50, 20, 45, 30, 80, 55, 10, 45, 35, 65, 20, 35, 50].map((h, i) => (
+              {[25, 45, 15, 60, 35, 75, 40, 90, 50, 20, 45, 30, 80, 55, 10, 45, 35, 65, 20, 35, 50].map((h, index) => (
                 <motion.div
-                  key={i}
+                  key={index}
                   className="w-0.75 rounded-full bg-primary"
                   animate={{ height: [`${h}%`, `${h * 0.3}%`, `${h}%`] }}
                   transition={{
-                    duration: 1.2 + Math.random() * 1.5,
+                    duration: 1.2 + ((index * 0.3) % 1.5),
                     repeat: Infinity,
                     ease: "easeInOut",
-                    delay: i * 0.04
+                    delay: index * 0.04
                   }}
                 />
               ))}

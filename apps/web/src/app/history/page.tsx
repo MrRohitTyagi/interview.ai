@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { db, interviews, reports, users } from "@ai-interviewer/db";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import {
   AlertTriangle,
   ArrowRight,
@@ -18,7 +18,7 @@ import { auth } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 import { DeleteInterviewButton } from "../dashboard/delete-interview-button";
 import { EndInterviewButton } from "../dashboard/end-interview-button";
@@ -40,7 +40,7 @@ function formatRelativeTime(date: Date): string {
   return `${Math.floor(diffDays / 30)}mo ago`;
 }
 
-function StatusBadge({ r }: { r: any }) {
+function StatusBadge({ r }: { r: { status: string; reportStatus: string | null; technicalScore: number | null } }) {
   const isAbandoned = r.status === "abandoned";
   const isCompleted = r.status === "completed";
   const hasReport = r.reportStatus === "ready" && r.technicalScore !== null;

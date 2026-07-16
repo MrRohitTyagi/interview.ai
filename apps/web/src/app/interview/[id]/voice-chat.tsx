@@ -4,7 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, Award, Ban, Loader2, MessagesSquare, Mic, MicOff, Square, Volume2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Award,
+  Ban,
+  Loader2,
+  MessagesSquare,
+  Mic,
+  MicOff,
+  Volume2,
+} from "lucide-react";
+import type {
+  ResumeAnalysis,
+  JDAnalysis,
+  PlannedTopic,
+} from "@ai-interviewer/ai-core";
 import { toast } from "sonner";
 
 import { CameraPanel } from "@/components/camera/camera-panel";
@@ -27,8 +41,18 @@ import {
   tileStatusDotClassName,
 } from "@/components/studio";
 
-type TranscriptEntry = { question: string; answer: string | null; topic: string };
-type Phase = "idle" | "speaking" | "listening" | "thinking" | "done" | "unsupported";
+type TranscriptEntry = {
+  question: string;
+  answer: string | null;
+  topic: string;
+};
+type Phase =
+  | "idle"
+  | "speaking"
+  | "listening"
+  | "thinking"
+  | "done"
+  | "unsupported";
 
 function formatCountdown(seconds: number): string {
   const clamped = Math.max(0, Math.round(seconds));
@@ -48,9 +72,12 @@ class AudioRecorder {
   }
 
   async start() {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as typeof window & { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext;
     this.audioContext = new AudioContextClass({ sampleRate: 16000 });
-    
+
     const workletCode = `
       class PCMProcessor extends AudioWorkletProcessor {
         process(inputs) {
@@ -76,7 +103,7 @@ class AudioRecorder {
 
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const source = this.audioContext.createMediaStreamSource(this.stream);
-    
+
     this.workletNode = new AudioWorkletNode(this.audioContext, "pcm-processor");
     this.workletNode.port.onmessage = (event) => {
       const arrayBuffer = event.data;
@@ -100,7 +127,7 @@ class AudioRecorder {
       this.workletNode = null;
     }
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
+      this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;
     }
     if (this.audioContext) {
@@ -117,7 +144,10 @@ class AudioPlayer {
 
   private initContext() {
     if (!this.audioContext) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as typeof window & { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
       this.audioContext = new AudioContextClass({ sampleRate: 24000 });
       this.nextPlayTime = this.audioContext.currentTime;
     }
@@ -147,7 +177,11 @@ class AudioPlayer {
       float32Array[i] = int16Array[i] / scale;
     }
 
-    const audioBuf = this.audioContext.createBuffer(1, float32Array.length, 24000);
+    const audioBuf = this.audioContext.createBuffer(
+      1,
+      float32Array.length,
+      24000,
+    );
     audioBuf.copyToChannel(float32Array, 0);
 
     const source = this.audioContext.createBufferSource();
@@ -163,7 +197,10 @@ class AudioPlayer {
     this.isPlaying = true;
 
     source.onended = () => {
-      if (this.audioContext && this.audioContext.currentTime >= this.nextPlayTime - 0.05) {
+      if (
+        this.audioContext &&
+        this.audioContext.currentTime >= this.nextPlayTime - 0.05
+      ) {
         this.isPlaying = false;
       }
     };
@@ -179,26 +216,25 @@ class AudioPlayer {
   }
 
   getIsPlaying() {
-    if (!this.audioContext || this.audioContext.state === "suspended") return false;
+    if (!this.audioContext || this.audioContext.state === "suspended")
+      return false;
     return this.audioContext.currentTime < this.nextPlayTime;
   }
 }
 
-const LIVE_SYSTEM_INSTRUCTION =
-  "You are a professional, warm AI interviewer named John. " +
-  "Your ONLY task is to act as the audio speaker and transcriber. " +
-  "When you receive a text message from the system, read it aloud EXACTLY as written, with a warm, natural tone. " +
-  "Do not add any of your own greetings, explanations, or commentary. Just read the text exactly as provided. " +
-  "When the candidate speaks, you must transcribe their words in real-time, but you must NEVER respond or generate any speech yourself. " +
 export interface VoiceChatProps {
   interviewId: string;
-  initialTranscript: { question: string; answer: string | null; topic: string | null }[];
+  initialTranscript: {
+    question: string;
+    answer: string | null;
+    topic: string | null;
+  }[];
   initialCompleted: boolean;
   startedAt: string | null;
   durationMinutes: number;
-  plan?: any;
-  resume?: any;
-  jd?: any;
+  plan?: PlannedTopic[];
+  resume?: ResumeAnalysis | null;
+  jd?: JDAnalysis | null;
   candidateName?: string;
   interviewType?: string;
 }
@@ -217,11 +253,12 @@ export function VoiceChat({
 }: VoiceChatProps) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
-  const [transcript, setTranscript] = useState<TranscriptEntry[]>(initialTranscript as TranscriptEntry[]);
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>(
+    initialTranscript as TranscriptEntry[],
+  );
   const [phase, setPhase] = useState<Phase>("idle");
   const [started, setStarted] = useState(false);
-  const [completed, setCompleted] = useState(initialCompleted);
-  const [closingMessage, setClosingMessage] = useState<string | null>(null);
+  const [completed] = useState(initialCompleted);
   const [liveTranscript, setLiveTranscript] = useState("");
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -229,10 +266,16 @@ export function VoiceChat({
 
   const socketRef = useRef<WebSocket | null>(null);
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
-  const audioPlayerRef = useRef<AudioPlayer>(null);
-  if (!audioPlayerRef.current && typeof window !== "undefined") {
-    audioPlayerRef.current = new AudioPlayer();
-  }
+  const audioPlayerRef = useRef<AudioPlayer | null>(null);
+
+  useEffect(() => {
+    if (!audioPlayerRef.current) {
+      audioPlayerRef.current = new AudioPlayer();
+    }
+    return () => {
+      audioPlayerRef.current?.stop();
+    };
+  }, []);
 
   const phaseRef = useRef<Phase>(phase);
   useEffect(() => {
@@ -255,7 +298,8 @@ export function VoiceChat({
 
   useEffect(() => {
     if (!startedAt || completed) return;
-    const deadline = new Date(startedAt).getTime() + durationMinutes * 60 * 1000;
+    const deadline =
+      new Date(startedAt).getTime() + durationMinutes * 60 * 1000;
     function tick() {
       setRemainingSeconds(Math.max(0, (deadline - Date.now()) / 1000));
     }
@@ -278,16 +322,20 @@ export function VoiceChat({
     setLiveTranscript("");
     try {
       audioRecorderRef.current = new AudioRecorder((base64Chunk) => {
-        if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN && phaseRef.current === "listening") {
+        if (
+          socketRef.current &&
+          socketRef.current.readyState === WebSocket.OPEN &&
+          phaseRef.current === "listening"
+        ) {
           const streamMsg = {
             realtimeInput: {
               mediaChunks: [
                 {
                   mimeType: "audio/pcm;rate=16000",
-                  data: base64Chunk
-                }
-              ]
-            }
+                  data: base64Chunk,
+                },
+              ],
+            },
           };
           socketRef.current.send(JSON.stringify(streamMsg));
         }
@@ -301,7 +349,11 @@ export function VoiceChat({
     }
   }
 
-  async function syncTurnToBackend(question: string, answer: string, topic: string) {
+  async function syncTurnToBackend(
+    question: string,
+    answer: string,
+    topic: string,
+  ) {
     try {
       setTranscript((prev) => {
         const copy = [...prev];
@@ -329,7 +381,8 @@ export function VoiceChat({
 
     try {
       const tokenRes = await fetch("/api/interviews/gemini-token");
-      if (!tokenRes.ok) throw new Error("Could not load API credentials from server");
+      if (!tokenRes.ok)
+        throw new Error("Could not load API credentials from server");
       const { key } = await tokenRes.json();
 
       const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${key}`;
@@ -337,7 +390,7 @@ export function VoiceChat({
       socketRef.current = ws;
 
       ws.onopen = () => {
-        const dynamicInstruction = 
+        const dynamicInstruction =
           `You are a professional, warm AI interviewer named Puck conducting a ${durationMinutes}-minute ${interviewType} interview.\n` +
           `Candidate Name: ${candidateName}\n` +
           `Resume: ${JSON.stringify(resume)}\n` +
@@ -358,13 +411,13 @@ export function VoiceChat({
               speechConfig: {
                 voiceConfig: {
                   prebuiltVoiceConfig: {
-                    voiceName: "Puck"
-                  }
-                }
-              }
+                    voiceName: "Puck",
+                  },
+                },
+              },
             },
             systemInstruction: {
-              parts: [{ text: dynamicInstruction }]
+              parts: [{ text: dynamicInstruction }],
             },
             tools: [
               {
@@ -376,15 +429,15 @@ export function VoiceChat({
                       type: "OBJECT",
                       properties: {
                         nextQuestion: { type: "STRING" },
-                        topic: { type: "STRING" }
+                        topic: { type: "STRING" },
                       },
-                      required: ["nextQuestion", "topic"]
-                    }
-                  }
-                ]
-              }
-            ]
-          }
+                      required: ["nextQuestion", "topic"],
+                    },
+                  },
+                ],
+              },
+            ],
+          },
         };
         ws.send(JSON.stringify(setupMsg));
       };
@@ -398,122 +451,148 @@ export function VoiceChat({
             textData = new TextDecoder().decode(textData);
           }
           const msg = JSON.parse(textData);
-        
-        if (msg.error) {
-          console.error("Gemini Live WebSocket error:", msg.error);
-          toast.error(`Gemini Live Error: ${msg.error.message || "Unknown error"}`);
-          setPhase("idle");
-          setStarted(false);
-          return;
-        }
 
-        if (msg.setupComplete || msg.setup_complete) {
-          console.log("Gemini Live setup complete acknowledgment received");
-          const last = transcriptRef.current[transcriptRef.current.length - 1];
-          const initialQuestionText = last && last.answer === null ? last.question : initialTranscript[0]?.question;
-          const isResuming = history.length > 0;
-          
-          if (initialQuestionText) {
-            const textToRead = isResuming 
-              ? initialQuestionText 
-              : `Hi ${candidateName}! I'm Puck, and I'll be conducting your interview today. Let's get started. ${initialQuestionText}`;
-            const speakMsg = {
-              clientContent: {
-                turns: [
-                  {
-                    role: "user",
-                    parts: [{ text: "Please read this text exactly as written: " + textToRead }]
-                  }
-                ],
-                turnComplete: true
-              }
-            };
-            ws.send(JSON.stringify(speakMsg));
-            setPhase("speaking");
-          } else {
-            setPhase("listening");
-            startListening();
+          if (msg.error) {
+            console.error("Gemini Live WebSocket error:", msg.error);
+            toast.error(
+              `Gemini Live Error: ${msg.error.message || "Unknown error"}`,
+            );
+            setPhase("idle");
+            setStarted(false);
+            return;
           }
-          return;
-        }
 
-        const toolCall = msg.toolCall || msg.tool_call;
-        if (toolCall) {
-          const call = toolCall.functionCalls?.[0] || toolCall.function_calls?.[0];
-          if (call && call.name === "record_turn") {
-            const args = call.args;
-            syncTurnToBackend(args.nextQuestion, liveTranscript, args.topic);
-            setLiveTranscript("");
-            
-            // Respond to the tool call to keep the connection happy
-            ws.send(JSON.stringify({
-              toolResponse: {
-                functionResponses: [
-                  {
-                    id: call.id,
-                    response: { status: "success" }
-                  }
-                ]
-              }
-            }));
-          }
-          return;
-        }
-        
-        const serverContent = msg.serverContent || msg.server_content;
-        if (serverContent) {
-          const modelTurn = serverContent.modelTurn || serverContent.model_turn;
-          const parts = modelTurn?.parts;
-          if (parts) {
-            for (const part of parts) {
-              const inlineData = part.inlineData || part.inline_data;
-              if (inlineData && inlineData.data) {
-                audioPlayerRef.current?.playChunk(inlineData.data);
-                if (phaseRef.current !== "speaking") setPhase("speaking");
-              }
+          if (msg.setupComplete || msg.setup_complete) {
+            console.log("Gemini Live setup complete acknowledgment received");
+            const last =
+              transcriptRef.current[transcriptRef.current.length - 1];
+            const initialQuestionText =
+              last && last.answer === null
+                ? last.question
+                : initialTranscript[0]?.question;
+            const isResuming = history.length > 0;
+
+            if (initialQuestionText) {
+              const textToRead = isResuming
+                ? initialQuestionText
+                : `Hi ${candidateName}! I'm Puck, and I'll be conducting your interview today. Let's get started. ${initialQuestionText}`;
+              const speakMsg = {
+                clientContent: {
+                  turns: [
+                    {
+                      role: "user",
+                      parts: [
+                        {
+                          text:
+                            "Please read this text exactly as written: " +
+                            textToRead,
+                        },
+                      ],
+                    },
+                  ],
+                  turnComplete: true,
+                },
+              };
+              ws.send(JSON.stringify(speakMsg));
+              setPhase("speaking");
+            } else {
+              setPhase("listening");
+              startListening();
             }
+            return;
           }
 
-          const inputTranscription = serverContent.inputTranscription || serverContent.input_transcription;
-          if (inputTranscription && inputTranscription.text) {
-            setLiveTranscript(inputTranscription.text);
+          const toolCall = msg.toolCall || msg.tool_call;
+          if (toolCall) {
+            const call =
+              toolCall.functionCalls?.[0] || toolCall.function_calls?.[0];
+            if (call && call.name === "record_turn") {
+              const args = call.args;
+              syncTurnToBackend(args.nextQuestion, liveTranscript, args.topic);
+              setLiveTranscript("");
+
+              // Respond to the tool call to keep the connection happy
+              ws.send(
+                JSON.stringify({
+                  toolResponse: {
+                    functionResponses: [
+                      {
+                        id: call.id,
+                        response: { status: "success" },
+                      },
+                    ],
+                  },
+                }),
+              );
+            }
+            return;
           }
 
-          if (serverContent.turnComplete || serverContent.turn_complete) {
-            const checkPlaying = setInterval(() => {
-              if (!audioPlayerRef.current?.getIsPlaying()) {
-                clearInterval(checkPlaying);
-                if (phaseRef.current === "speaking") {
-                  setPhase("listening");
-                  startListening();
-                } else if (phaseRef.current === "thinking" && completedRef.current) {
-                  setPhase("done");
+          const serverContent = msg.serverContent || msg.server_content;
+          if (serverContent) {
+            const modelTurn =
+              serverContent.modelTurn || serverContent.model_turn;
+            const parts = modelTurn?.parts;
+            if (parts) {
+              for (const part of parts) {
+                const inlineData = part.inlineData || part.inline_data;
+                if (inlineData && inlineData.data) {
+                  audioPlayerRef.current?.playChunk(inlineData.data);
+                  if (phaseRef.current !== "speaking") setPhase("speaking");
                 }
               }
-            }, 100);
+            }
+
+            const inputTranscription =
+              serverContent.inputTranscription ||
+              serverContent.input_transcription;
+            if (inputTranscription && inputTranscription.text) {
+              setLiveTranscript(inputTranscription.text);
+            }
+
+            if (serverContent.turnComplete || serverContent.turn_complete) {
+              const checkPlaying = setInterval(() => {
+                if (!audioPlayerRef.current?.getIsPlaying()) {
+                  clearInterval(checkPlaying);
+                  if (phaseRef.current === "speaking") {
+                    setPhase("listening");
+                    startListening();
+                  } else if (
+                    phaseRef.current === "thinking" &&
+                    completedRef.current
+                  ) {
+                    setPhase("done");
+                  }
+                }
+              }, 100);
+            }
           }
+        } catch (err) {
+          console.error("Failed to parse Gemini message:", err);
         }
-      } catch (err) {
-        console.error("Failed to parse Gemini message:", err);
-      }
-    };
+      };
 
       ws.onerror = (err) => {
         console.error("Gemini Live WebSocket error:", err);
-        toast.error("WebSocket connection encountered an error (check console)");
+        toast.error(
+          "WebSocket connection encountered an error (check console)",
+        );
       };
 
       ws.onclose = (event) => {
         console.log("Gemini Live WebSocket closed", event.code, event.reason);
         if (phaseRef.current !== "done") {
-          toast.error(`Session connection lost. Code: ${event.code}, Reason: ${event.reason || "None"}`);
+          toast.error(
+            `Session connection lost. Code: ${event.code}, Reason: ${event.reason || "None"}`,
+          );
           setPhase("idle");
           setStarted(false);
         }
       };
-
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to start session");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to start session",
+      );
       setStarted(false);
       setPhase("idle");
     }
@@ -522,29 +601,38 @@ export function VoiceChat({
   async function handleCancelConfirm() {
     setCancelling(true);
     try {
-      const res = await fetch(`/api/interviews/${interviewId}/cancel`, { method: "POST" });
+      const res = await fetch(`/api/interviews/${interviewId}/cancel`, {
+        method: "POST",
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to cancel interview");
-      
+
       audioRecorderRef.current?.stop();
       audioPlayerRef.current?.stop();
       socketRef.current?.close();
 
       router.push("/dashboard");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to cancel interview");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to cancel interview",
+      );
       setCancelling(false);
     }
   }
 
   const lastQuestion = transcript[transcript.length - 1]?.question ?? "";
-  const displayText = completed && closingMessage ? closingMessage : lastQuestion;
+  const displayText = lastQuestion;
   const tallyActive = phase === "speaking" || phase === "listening";
   const tallyLabel =
-    phase === "speaking" ? "On air" : phase === "listening" ? "Listening" : phase === "thinking" ? "Thinking" : "Standby";
+    phase === "speaking"
+      ? "On air"
+      : phase === "listening"
+        ? "Listening"
+        : phase === "thinking"
+          ? "Thinking"
+          : "Standby";
 
   const cameraColumn = (
-
     <div className="flex min-h-0 max-h-[90vh] flex-1 flex-col gap-3 lg:overflow-hidden">
       <div className="min-h-0 flex-1">
         <div className={tileFrameClassName(phase === "speaking", "fill")}>
@@ -556,7 +644,11 @@ export function VoiceChat({
         </div>
       </div>
       <div className="min-h-0 flex-1">
-        <CameraPanel interviewId={interviewId} active={phase === "listening"} variant="fill" />
+        <CameraPanel
+          interviewId={interviewId}
+          active={phase === "listening"}
+          variant="fill"
+        />
       </div>
     </div>
   );
@@ -566,7 +658,9 @@ export function VoiceChat({
   // it jump around as liveTranscript appeared/disappeared.
   const answerBlock = (
     <div className="flex min-h-18 w-full flex-col justify-center gap-1 rounded-md border border-border bg-card px-4 py-3">
-      <span className="font-mono text-[0.62rem] tracking-wider text-muted-foreground uppercase">Your answer</span>
+      <span className="font-mono text-[0.62rem] tracking-wider text-muted-foreground uppercase">
+        Your answer
+      </span>
       <p className="text-sm text-muted-foreground italic">
         {phase === "listening" && liveTranscript
           ? `“${liveTranscript}”`
@@ -592,19 +686,27 @@ export function VoiceChat({
           history.map((entry, i) => (
             <div key={i} className="flex flex-col gap-3 p-4">
               <div className="flex flex-col gap-1">
-                <span className="font-mono text-[0.62rem] tracking-wider text-primary uppercase">Interviewer</span>
+                <span className="font-mono text-[0.62rem] tracking-wider text-primary uppercase">
+                  Interviewer
+                </span>
                 <p className="text-sm leading-relaxed">{entry.question}</p>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-mono text-[0.62rem] tracking-wider text-muted-foreground uppercase">You</span>
-                <p className="text-sm leading-relaxed text-muted-foreground">{entry.answer}</p>
+                <span className="font-mono text-[0.62rem] tracking-wider text-muted-foreground uppercase">
+                  You
+                </span>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {entry.answer}
+                </p>
               </div>
             </div>
           ))
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
             <MessagesSquare className="size-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Nothing yet — your conversation will show up here.</p>
+            <p className="text-sm text-muted-foreground">
+              Nothing yet — your conversation will show up here.
+            </p>
           </div>
         )}
       </div>
@@ -622,9 +724,16 @@ export function VoiceChat({
           Dashboard
         </Link>
         <div className="flex items-center gap-2">
-          {currentTopic && !completed && <Badge variant="secondary">{currentTopic}</Badge>}
+          {currentTopic && !completed && (
+            <Badge variant="secondary">{currentTopic}</Badge>
+          )}
           {started && !completed && (
-            <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => setCancelOpen(true)}>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setCancelOpen(true)}
+            >
               <Ban className="size-3.5" />
               End
             </Button>
@@ -637,16 +746,26 @@ export function VoiceChat({
           <DialogHeader>
             <DialogTitle>End this interview?</DialogTitle>
             <DialogDescription>
-              This ends the session right away; there&apos;s no pausing or resuming. It won&apos;t count as
-              completed and there&apos;s no report for it.
+              This ends the session right away; there&apos;s no pausing or
+              resuming. It won&apos;t count as completed and there&apos;s no
+              report for it.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="items-center sm:justify-between">
             <Button variant="ghost" onClick={() => setCancelOpen(false)}>
               Keep going
             </Button>
-            <Button variant="destructive" onClick={handleCancelConfirm} disabled={cancelling} className="gap-2">
-              {cancelling ? <Loader2 className="size-4 animate-spin" /> : <Ban className="size-4" />}
+            <Button
+              variant="destructive"
+              onClick={handleCancelConfirm}
+              disabled={cancelling}
+              className="gap-2"
+            >
+              {cancelling ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Ban className="size-4" />
+              )}
               {cancelling ? "Ending…" : "End interview"}
             </Button>
           </DialogFooter>
@@ -656,10 +775,12 @@ export function VoiceChat({
       {phase === "unsupported" ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
           <MicOff className="size-5" />
-          <p className="max-w-md font-medium text-foreground">This browser can&apos;t run the interview</p>
+          <p className="max-w-md font-medium text-foreground">
+            This browser can&apos;t run the interview
+          </p>
           <p className="max-w-md">
-            Interviews here are spoken, not typed, and that needs the Web Speech API — supported in Chrome and Edge.
-            Try again in one of those.
+            Interviews here are spoken, not typed, and that needs the Web Speech
+            API — supported in Chrome and Edge. Try again in one of those.
           </p>
         </div>
       ) : (
@@ -705,7 +826,12 @@ export function VoiceChat({
                 <Card className="studio-panel studio-glow w-full shrink-0">
                   <CardContent className="flex flex-col items-center gap-3 p-4 text-center">
                     <p className="font-medium">Interview complete</p>
-                    <Button render={<Link href={`/interview/${interviewId}/report`} />} className="studio-glow gap-2">
+                    <Button
+                      render={
+                        <Link href={`/interview/${interviewId}/report`} />
+                      }
+                      className="studio-glow gap-2"
+                    >
                       <Award className="size-4" />
                       View report
                     </Button>
@@ -716,7 +842,9 @@ export function VoiceChat({
               <div className="flex shrink-0 flex-col gap-3">
                 <div className="flex flex-col items-start gap-2">
                   <span className="flex items-center gap-2 font-mono text-[0.68rem] tracking-[0.12em] text-muted-foreground uppercase">
-                    {phase === "thinking" && <Loader2 className="size-3 animate-spin" />}
+                    {phase === "thinking" && (
+                      <Loader2 className="size-3 animate-spin" />
+                    )}
                     {phase === "thinking" ? "Thinking" : "Question"}
                   </span>
                   <motion.p
@@ -741,8 +869,8 @@ export function VoiceChat({
                   size="lg"
                   variant={phase === "listening" ? "default" : "secondary"}
                   className={
-                    phase === "listening" 
-                      ? "studio-glow w-full sm:w-96 justify-center gap-4 bg-red-500 hover:bg-red-600 text-white animate-pulse h-16" 
+                    phase === "listening"
+                      ? "studio-glow w-full sm:w-96 justify-center gap-4 bg-red-500 hover:bg-red-600 text-white animate-pulse h-16"
                       : "w-full sm:w-96 justify-center gap-4 h-16 opacity-80"
                   }
                 >
@@ -750,24 +878,36 @@ export function VoiceChat({
                     <>
                       <Mic className="size-6" />
                       <div className="flex flex-col items-start text-left leading-tight">
-                        <span className="font-bold text-[1rem]">Microphone is ON</span>
-                        <span className="text-xs opacity-90 font-normal">Speak your answer, then click here to submit</span>
+                        <span className="font-bold text-[1rem]">
+                          Microphone is ON
+                        </span>
+                        <span className="text-xs opacity-90 font-normal">
+                          Speak your answer, then click here to submit
+                        </span>
                       </div>
                     </>
                   ) : phase === "speaking" ? (
                     <>
                       <Volume2 className="size-6 text-primary" />
                       <div className="flex flex-col items-start text-left leading-tight">
-                        <span className="font-bold text-[1rem]">Interviewer is speaking...</span>
-                        <span className="text-xs opacity-90 font-normal">Please listen</span>
+                        <span className="font-bold text-[1rem]">
+                          Interviewer is speaking...
+                        </span>
+                        <span className="text-xs opacity-90 font-normal">
+                          Please listen
+                        </span>
                       </div>
                     </>
                   ) : (
                     <>
                       <Loader2 className="size-6 animate-spin" />
                       <div className="flex flex-col items-start text-left leading-tight">
-                        <span className="font-bold text-[1rem]">Interviewer is thinking...</span>
-                        <span className="text-xs opacity-90 font-normal">Generating the next question</span>
+                        <span className="font-bold text-[1rem]">
+                          Interviewer is thinking...
+                        </span>
+                        <span className="text-xs opacity-90 font-normal">
+                          Generating the next question
+                        </span>
                       </div>
                     </>
                   )}

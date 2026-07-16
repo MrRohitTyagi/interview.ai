@@ -3,6 +3,7 @@ import { answers, db, interviews, interviewStates, jobDescriptions, questions, r
 import { asc, eq } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
+import type { ResumeAnalysis, JDAnalysis, PlannedTopic } from "@ai-interviewer/ai-core";
 
 import { VoiceChat } from "./voice-chat";
 
@@ -42,9 +43,9 @@ export default async function InterviewPage({ params }: { params: Promise<{ id: 
       initialCompleted={interview.status === "completed"}
       startedAt={interview.startedAt?.toISOString() ?? null}
       durationMinutes={interview.durationMinutes}
-      plan={state?.plannedTopics ?? []}
-      resume={resume?.parsedJson ?? null}
-      jd={jd?.parsedJson ?? null}
+      plan={(state?.plannedTopics as PlannedTopic[]) ?? []}
+      resume={(resume?.parsedJson as ResumeAnalysis) ?? null}
+      jd={(jd?.parsedJson as JDAnalysis) ?? null}
       candidateName={candidateName}
       interviewType={interview.type}
     />
