@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
-import { db, interviews, reports, users } from "@ai-interviewer/db";
-import { and, avg, count, desc, eq } from "drizzle-orm";
+import Link from "next/link";
+import { db, interviews, reports, users, codingAttempts } from "@ai-interviewer/db";
+import { and, avg, count, desc, eq, or } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
@@ -15,7 +16,7 @@ export default async function DashboardPage() {
 
   const userId = session.user.id;
 
-  const [statusCounts, typeCounts, avgScores, lastPracticedQuery, [currentUser]] = await Promise.all([
+  const [statusCounts, typeCounts, avgScores, lastPracticedQuery, [currentUser], solvedCoding] = await Promise.all([
     db.select({ status: interviews.status, count: count() }).from(interviews).where(eq(interviews.userId, userId)).groupBy(interviews.status),
     db.select({ type: interviews.type, count: count() }).from(interviews).where(eq(interviews.userId, userId)).groupBy(interviews.type),
     db
@@ -30,6 +31,12 @@ export default async function DashboardPage() {
       .orderBy(desc(interviews.createdAt))
       .limit(1),
     db.select({ creditBalance: users.creditBalance }).from(users).where(eq(users.id, userId)).limit(1),
+    db.selectDistinct({ questionId: codingAttempts.questionId })
+      .from(codingAttempts)
+      .where(and(
+        eq(codingAttempts.userId, userId),
+        or(eq(codingAttempts.status, "success"), eq(codingAttempts.aiScore, 10), eq(codingAttempts.aiScore, 100))
+      ))
   ]);
 
   const total = statusCounts.reduce((sum, s) => sum + s.count, 0);
@@ -37,6 +44,7 @@ export default async function DashboardPage() {
   const avgTechnicalRaw = avgScores[0]?.avgTechnical;
   const avgCommunicationRaw = avgScores[0]?.avgCommunication;
   const lastPracticedAt = lastPracticedQuery[0]?.createdAt ?? null;
+  const solvedCodingCount = solvedCoding.length;
 
   return (
     <AppShell
@@ -62,25 +70,24 @@ export default async function DashboardPage() {
  
           <div className="flex flex-col gap-3">
             <h2 className="font-mono text-[0.68rem] uppercase tracking-wider text-muted-foreground px-1">
-              Studio Signal
+              Coding Arena
             </h2>
-            <div className="rounded-xl border border-border bg-card p-5 relative overflow-hidden flex flex-col justify-between h-full min-h-[176px]">
+            <div className="rounded-xl border border-border bg-card p-5 relative overflow-hidden flex flex-col justify-between h-full min-h-44">
               <DashboardAtmosphere />
               <div className="z-10">
                 <div className="flex items-center gap-2">
                   <span className="relative flex size-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
+                    <span className="relative inline-flex rounded-full size-2 bg-primary"></span>
                   </span>
-                  <span className="text-[0.62rem] font-mono uppercase tracking-wider text-emerald-400">System Live</span>
+                  <span className="text-[0.62rem] font-mono uppercase tracking-wider text-primary">Problem solving</span>
                 </div>
                 <div className="mt-3 font-serif text-base leading-snug">
-                  Audio-to-audio mock engine is operational. Select a channel to begin.
+                  Sharpen your algorithmic skills and architecture design with AI feedback.
                 </div>
               </div>
-              <div className="mt-4 border-t border-border pt-3 flex justify-between font-mono text-[0.68rem] text-muted-foreground z-10">
-                <span>Practiced: {total}</span>
-                <span>Completed: {completed}</span>
+              <div className="mt-4 border-t border-border pt-3 flex justify-between font-mono text-[0.68rem] text-muted-foreground z-10 items-center">
+                <span>Total Solved: {solvedCodingCount}</span>
+                <Link href="/coding" className="text-primary hover:underline hover:text-primary/80 transition-colors">Go to Arena &rarr;</Link>
               </div>
             </div>
           </div>
@@ -89,6 +96,7 @@ export default async function DashboardPage() {
         <ProgressPanel
           total={total}
           completed={completed}
+          solvedCodingCount={solvedCodingCount}
           avgTechnical={avgTechnicalRaw ? Math.round(Number(avgTechnicalRaw)) : null}
           avgCommunication={avgCommunicationRaw ? Math.round(Number(avgCommunicationRaw)) : null}
           typeCounts={typeCounts}

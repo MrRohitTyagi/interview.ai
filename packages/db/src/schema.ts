@@ -310,6 +310,7 @@ export const creditReasonEnum = pgEnum("credit_reason", [
   "interview_plan",
   "interview_turn",
   "report_generation",
+  "ai_code_review",
   "signup_grant",
   "redeem_code",
   "admin_grant",

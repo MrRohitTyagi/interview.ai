@@ -108,7 +108,7 @@ export function InterviewSetup({
               </div>
               <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/30 px-3 py-1.5 shrink-0">
                 <FileCheck2 className="size-3.5 text-muted-foreground" />
-                <span className="truncate text-xs font-medium max-w-[120px] lg:max-w-[180px]">
+                <span className="truncate text-xs font-medium max-w-30 lg:max-w-45">
                   {resume.fileName ?? "Resume"}
                 </span>
                 <Link
@@ -224,7 +224,7 @@ export function InterviewSetup({
                 </Label>
                 <textarea
                   id="customInstructions"
-                  className="min-h-[72px] w-full rounded-lg border border-border bg-background/40 p-3 text-xs outline-none focus:border-primary/50 placeholder:text-muted-foreground/60 leading-normal resize-none"
+                  className="min-h-18 w-full rounded-lg border border-border bg-background/40 p-3 text-xs outline-none focus:border-primary/50 placeholder:text-muted-foreground/60 leading-normal resize-none"
                   placeholder="e.g. Focus on distributed systems, skip basic OOP questions..."
                   value={customInstructions}
                   onChange={(e) => setCustomInstructions(e.target.value)}

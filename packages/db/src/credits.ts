@@ -19,6 +19,7 @@ export type CreditReason =
   | "interview_plan"
   | "interview_turn"
   | "report_generation"
+  | "ai_code_review"
   | "signup_grant"
   | "redeem_code"
   | "admin_grant";
@@ -32,6 +33,7 @@ export const CREDIT_COSTS = {
   interview_plan: 5,
   interview_turn: 5,
   report_generation: 15,
+  ai_code_review: 5,
 } as const satisfies Partial<Record<CreditReason, number>>;
 
 export const SIGNUP_GRANT_CREDITS = 220;

@@ -1,6 +1,6 @@
 "use server";
 
-import { db, interviews, codingAttempts } from "@ai-interviewer/db";
+import { db, interviews, codingAttempts, applyCreditDelta, CREDIT_COSTS } from "@ai-interviewer/db";
 import { count } from "drizzle-orm";
 import { reviewCode } from "@ai-interviewer/ai-core";
 import { auth } from "@/lib/auth";
@@ -8,6 +8,9 @@ import { auth } from "@/lib/auth";
 export async function submitBrainstormCodeAction(questionId: string, questionTitle: string, questionDescription: string, candidateCode: string) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
+
+  // Deduct credits before generating AI review
+  await applyCreditDelta(session.user.id, -CREDIT_COSTS.ai_code_review, "ai_code_review");
 
   const review = await reviewCode(questionTitle, questionDescription, candidateCode);
 

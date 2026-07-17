@@ -205,7 +205,7 @@ export default async function HistoryPage() {
                       </div>
 
                       {hasReport && r.recommendation ? (
-                        <p className="text-xs text-muted-foreground italic truncate max-w-[550px] mt-1 pr-4">
+                        <p className="text-xs text-muted-foreground italic truncate max-w-137.5 mt-1 pr-4">
                           &ldquo;{r.recommendation}&rdquo;
                         </p>
                       ) : (

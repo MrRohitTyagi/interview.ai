@@ -155,7 +155,7 @@ export function CodingClient({ initialCompleted = {} }: { initialCompleted?: Rec
         </div>
 
         {/* Questions */}
-        <div className="flex flex-col gap-2 min-h-[400px]">
+        <div className="flex flex-col gap-2 min-h-100">
           <AnimatePresence mode="popLayout">
             {filteredQuestions.map((q, i) => (
               <motion.div
@@ -191,7 +191,7 @@ export function CodingClient({ initialCompleted = {} }: { initialCompleted?: Rec
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
-                        <Circle className="size-3 text-muted-foreground/50" /> {q.topic}
+                        <Circle className="size-3 text-muted-foreground/50 invisible" /> {q.topic}
                       </span>
                       <span className="flex items-center gap-1 font-mono text-[10px] uppercase">
                         {q.type === "algorithmic" ? (

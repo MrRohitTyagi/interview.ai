@@ -12,7 +12,13 @@ import {
 
 import { ScoreGauge } from "@/components/studio";
 
-const TYPE_CHART_CLASSES = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5"];
+const TYPE_CHART_CLASSES = [
+  "bg-chart-1",
+  "bg-chart-2",
+  "bg-chart-3",
+  "bg-chart-4",
+  "bg-chart-5",
+];
 
 const TYPE_LABELS: Record<string, string> = {
   technical: "Technical",
@@ -49,7 +55,7 @@ function StatTile({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.6 }}
       transition={{ duration: 0.3, delay: index * 0.04 }}
-      className="studio-panel flex min-h-[8.5rem] flex-col items-center justify-center gap-2 rounded-xl px-3 py-3 text-center"
+      className="studio-panel flex min-h-34 flex-col items-center justify-center gap-2 rounded-xl px-3 py-3 text-center"
     >
       <span className="flex items-center gap-1.5 font-mono text-[0.58rem] tracking-[0.08em] text-muted-foreground uppercase">
         <Icon className="size-3" />
@@ -60,7 +66,11 @@ function StatTile({
   );
 }
 
-function TypeBreakdown({ typeCounts }: { typeCounts: { type: string; count: number }[] }) {
+function TypeBreakdown({
+  typeCounts,
+}: {
+  typeCounts: { type: string; count: number }[];
+}) {
   const reduceMotion = useReducedMotion();
   const total = typeCounts.reduce((sum, t) => sum + t.count, 0);
   if (total === 0) return null;
@@ -74,7 +84,11 @@ function TypeBreakdown({ typeCounts }: { typeCounts: { type: string; count: numb
             className={TYPE_CHART_CLASSES[i % TYPE_CHART_CLASSES.length]}
             initial={reduceMotion ? false : { width: 0 }}
             animate={{ width: `${(t.count / total) * 100}%` }}
-            transition={{ duration: 0.5, delay: 0.1 + i * 0.04, ease: [0.16, 1, 0.3, 1] }}
+            transition={{
+              duration: 0.5,
+              delay: 0.1 + i * 0.04,
+              ease: [0.16, 1, 0.3, 1],
+            }}
           />
         ))}
       </div>
@@ -84,7 +98,9 @@ function TypeBreakdown({ typeCounts }: { typeCounts: { type: string; count: numb
             key={t.type}
             className="flex items-center gap-1 font-mono text-[0.58rem] tracking-wide text-muted-foreground uppercase"
           >
-            <span className={`size-1 rounded-full ${TYPE_CHART_CLASSES[i % TYPE_CHART_CLASSES.length]}`} />
+            <span
+              className={`size-1 rounded-full ${TYPE_CHART_CLASSES[i % TYPE_CHART_CLASSES.length]}`}
+            />
             {TYPE_LABELS[t.type] ?? t.type} · {t.count}
           </span>
         ))}
@@ -103,6 +119,7 @@ export function ProgressPanel({
 }: {
   total: number;
   completed: number;
+  solvedCodingCount: number;
   avgTechnical: number | null;
   avgCommunication: number | null;
   typeCounts: { type: string; count: number }[];
@@ -122,20 +139,25 @@ export function ProgressPanel({
         </span>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatTile icon={ListChecks} label="Attempts" index={0}>
-            <span className="font-mono text-2xl font-semibold tabular-nums">{total}</span>
+            <span className="font-mono text-2xl font-semibold tabular-nums">
+              {total}
+            </span>
           </StatTile>
           <StatTile icon={CheckCircle2} label="Completed" index={1}>
-            <span className="font-mono text-2xl font-semibold tabular-nums">{completed}</span>
+            <span className="font-mono text-2xl font-semibold tabular-nums">
+              {completed}
+            </span>
             {total > 0 && (
               <span className="font-mono text-[0.58rem] text-muted-foreground">
                 {Math.round((completed / total) * 100)}% Rate
               </span>
             )}
           </StatTile>
-          <StatTile icon={Target} label="Avg Technical" index={2}>
+
+          <StatTile icon={Target} label="Avg Technical" index={3}>
             <ScoreGauge value={avgTechnical} size="sm" />
           </StatTile>
-          <StatTile icon={MessagesSquare} label="Avg Behavior" index={3}>
+          <StatTile icon={MessagesSquare} label="Avg Behavior" index={4}>
             <ScoreGauge value={avgCommunication} size="sm" />
           </StatTile>
         </div>

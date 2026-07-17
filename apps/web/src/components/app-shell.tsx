@@ -120,30 +120,31 @@ export function AppShell({ children, credits = 0, userName = "User", userRole = 
     <div className="flex h-full flex-col justify-between bg-card text-card-foreground">
       <div className="flex flex-col gap-6 px-4 pt-6 pb-8 overflow-y-auto flex-1">
         {/* Brand Logo & Toggle */}
-        <div className={cn("flex items-center px-2 transition-all", collapsed ? "flex-col gap-4" : "justify-between")}>
+        <div className={cn("flex items-center px-2 transition-all", collapsed ? "justify-center" : "justify-between")}>
           {collapsed ? (
-            <>
-              <Link href="/" className="font-serif text-xl font-bold tracking-tight text-primary">
-                i<span className="text-foreground">.</span>
-              </Link>
               <Button
                 onClick={toggleCollapse}
-                variant="ghost"
+                variant="outline"
                 size="icon"
-                className="size-8 rounded-lg text-muted-foreground hover:bg-secondary hidden lg:flex"
+                className="size-8 rounded-lg text-muted-foreground hover:bg-secondary hidden lg:flex border-border/50 bg-transparent"
                 title="Expand Sidebar"
               >
                 <ChevronRight className="size-4" />
               </Button>
-            </>
           ) : (
             <>
               <div>
                 <Link href="/" className="font-serif text-xl font-medium tracking-tight text-foreground">
                   interview<span className="accent-text font-semibold text-primary">.ai</span>
                 </Link>
-                <div className="mt-1 font-mono text-[0.62rem] uppercase tracking-wider text-muted-foreground">
-                  Mock Studio v2.0
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="relative flex size-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full size-1.5 bg-emerald-500"></span>
+                  </span>
+                  <span className="font-mono text-[0.60rem] uppercase tracking-wider text-emerald-400">
+                    System Live
+                  </span>
                 </div>
               </div>
               <Button
