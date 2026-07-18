@@ -375,6 +375,18 @@ export function VoiceChat({
   }
 
   async function begin() {
+    // 1. Clean up any existing socket connection and media recorders/players to prevent overlapping threads
+    if (socketRef.current) {
+      try {
+        socketRef.current.close();
+      } catch (e) {
+        console.error("Error closing existing socket:", e);
+      }
+      socketRef.current = null;
+    }
+    audioRecorderRef.current?.stop();
+    audioPlayerRef.current?.stop();
+
     audioPlayerRef.current?.resume();
     setStarted(true);
     setPhase("thinking");
@@ -385,13 +397,14 @@ export function VoiceChat({
         throw new Error("Could not load API credentials from server");
       const { key } = await tokenRes.json();
 
-      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${key}`;
+      // Use v1beta endpoint for stable Gemini Multimodal Live API (BidiGenerateContent)
+      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${key}`;
       const ws = new WebSocket(wsUrl);
       socketRef.current = ws;
 
       ws.onopen = () => {
         const dynamicInstruction =
-          `You are a professional, warm AI interviewer named Puck conducting a ${durationMinutes}-minute ${interviewType} interview.\n` +
+          `You are a professional, warm AI interviewer named John conducting a ${durationMinutes}-minute ${interviewType} interview.\n` +
           `Candidate Name: ${candidateName}\n` +
           `Resume: ${JSON.stringify(resume)}\n` +
           `Job Description: ${JSON.stringify(jd)}\n` +
@@ -405,6 +418,7 @@ export function VoiceChat({
 
         const setupMsg = {
           setup: {
+            // Use models/gemini-2.5-flash-native-audio-latest which natively supports Bidi WebSocket connections and real-time audio
             model: "models/gemini-2.5-flash-native-audio-latest",
             generationConfig: {
               responseModalities: ["AUDIO"],
@@ -475,7 +489,7 @@ export function VoiceChat({
             if (initialQuestionText) {
               const textToRead = isResuming
                 ? initialQuestionText
-                : `Hi ${candidateName}! I'm Puck, and I'll be conducting your interview today. Let's get started. ${initialQuestionText}`;
+                : `Hi ${candidateName}! I'm John, and I'll be conducting your interview today. Let's get started. ${initialQuestionText}`;
               const speakMsg = {
                 clientContent: {
                   turns: [
@@ -511,13 +525,13 @@ export function VoiceChat({
               syncTurnToBackend(args.nextQuestion, liveTranscript, args.topic);
               setLiveTranscript("");
 
-              // Respond to the tool call to keep the connection happy
               ws.send(
                 JSON.stringify({
                   toolResponse: {
                     functionResponses: [
                       {
                         id: call.id,
+                        name: call.name,
                         response: { status: "success" },
                       },
                     ],
@@ -632,87 +646,6 @@ export function VoiceChat({
           ? "Thinking"
           : "Standby";
 
-  const cameraColumn = (
-    <div className="flex min-h-0 max-h-[90vh] flex-1 flex-col gap-3 lg:overflow-hidden">
-      <div className="min-h-0 flex-1">
-        <div className={tileFrameClassName(phase === "speaking", "fill")}>
-          <InterviewerAvatar active={phase === "speaking"} />
-          <span className={tileLabelClassName}>
-            <span className={tileStatusDotClassName(phase === "speaking")} />
-            Interviewer
-          </span>
-        </div>
-      </div>
-      <div className="min-h-0 flex-1">
-        <CameraPanel
-          interviewId={interviewId}
-          active={phase === "listening"}
-          variant="fill"
-        />
-      </div>
-    </div>
-  );
-
-  // Always rendered at a fixed min-height, even with nothing to show yet —
-  // conditionally mounting this box was what made the submit button below
-  // it jump around as liveTranscript appeared/disappeared.
-  const answerBlock = (
-    <div className="flex min-h-18 w-full flex-col justify-center gap-1 rounded-md border border-border bg-card px-4 py-3">
-      <span className="font-mono text-[0.62rem] tracking-wider text-muted-foreground uppercase">
-        Your answer
-      </span>
-      <p className="text-sm text-muted-foreground italic">
-        {phase === "listening" && liveTranscript
-          ? `“${liveTranscript}”`
-          : phase === "listening"
-            ? "Listening…"
-            : "—"}
-      </p>
-    </div>
-  );
-
-  // A real dialogue transcript, not chat bubbles — this is a recorded
-  // interview, not a messaging thread, so both speakers read top-to-bottom
-  // in one column, told apart by label color and weight rather than
-  // alternating sides.
-  const transcriptRail = (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <span className="flex shrink-0 items-center gap-1.5 font-mono text-[0.68rem] tracking-[0.12em] text-muted-foreground uppercase">
-        <MessagesSquare className="size-3.5" />
-        Transcript so far
-      </span>
-      <div className="flex min-h-0 flex-1 flex-col divide-y divide-border overflow-y-auto rounded-md border border-border bg-card/50">
-        {history.length > 0 ? (
-          history.map((entry, i) => (
-            <div key={i} className="flex flex-col gap-3 p-4">
-              <div className="flex flex-col gap-1">
-                <span className="font-mono text-[0.62rem] tracking-wider text-primary uppercase">
-                  Interviewer
-                </span>
-                <p className="text-sm leading-relaxed">{entry.question}</p>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="font-mono text-[0.62rem] tracking-wider text-muted-foreground uppercase">
-                  You
-                </span>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {entry.answer}
-                </p>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
-            <MessagesSquare className="size-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Nothing yet — your conversation will show up here.
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
   return (
     <div className="mx-auto flex w-full max-w-[1800px] flex-1 flex-col gap-4 p-6 lg:h-screen lg:overflow-hidden lg:py-5">
       <div className="flex shrink-0 items-center justify-between">
@@ -784,24 +717,38 @@ export function VoiceChat({
           </p>
         </div>
       ) : (
-        // Two exactly equal halves on a wide viewport: cameras (left),
-        // question/answer/transcript (right). Nothing here requires
-        // scrolling the page itself — only the transcript list scrolls
-        // internally, and only once it grows past the space left for it.
-        // Below `lg` this collapses to a single stacked, page-scrollable
-        // column instead of forcing the split at a width that can't fit it.
-        <div className="grid flex-1 gap-6 lg:min-h-0 lg:grid-cols-[280px_1fr] lg:overflow-hidden">
-          {cameraColumn}
+        <div className="flex flex-1 flex-col items-center justify-center gap-8 lg:overflow-hidden w-full max-w-5xl mx-auto">
+          {/* Top row: Video Call Layout */}
+          <div className="flex w-full flex-col sm:flex-row gap-4 h-[40vh] sm:h-[50vh]">
+            <div className="flex-1 flex items-center justify-center rounded-2xl overflow-hidden bg-black/5 ring-1 ring-border shadow-inner relative">
+               <CameraPanel
+                 interviewId={interviewId}
+                 active={phase === "listening"}
+                 variant="fill"
+               />
+            </div>
+            
+            <div className="flex-1 flex flex-col items-center justify-center rounded-2xl overflow-hidden bg-black/5 ring-1 ring-border shadow-inner relative">
+               <div className={tileFrameClassName(phase === "speaking", "fill")}>
+                 <InterviewerAvatar active={phase === "speaking"} />
+                 <span className={tileLabelClassName}>
+                   <span className={tileStatusDotClassName(phase === "speaking")} />
+                   Interviewer
+                 </span>
+               </div>
+            </div>
+          </div>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:overflow-hidden">
-            <div className="flex shrink-0 items-center justify-between rounded-md border border-border bg-card px-4 py-2.5">
+          {/* Bottom row: Controls & Text */}
+          <div className="flex w-full flex-col gap-6 items-center bg-card p-6 rounded-2xl border border-border shadow-sm">
+            <div className="flex w-full items-center justify-between">
               <Tally active={tallyActive} label={tallyLabel} />
               {remainingSeconds !== null && !completed && (
                 <span
                   className={
                     remainingSeconds <= 60
-                      ? "pulse-glow rounded-full bg-destructive/10 px-2 py-0.5 font-mono text-xs text-destructive"
-                      : "font-mono text-xs text-muted-foreground"
+                      ? "pulse-glow rounded-full bg-destructive/10 px-3 py-1 font-mono text-sm text-destructive font-semibold"
+                      : "font-mono text-sm text-muted-foreground font-semibold"
                   }
                 >
                   {formatCountdown(remainingSeconds)}
@@ -810,59 +757,62 @@ export function VoiceChat({
             </div>
 
             {!started ? (
-              <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+              <div className="flex flex-col items-center text-center gap-4 py-4">
                 <p className="max-w-md text-sm text-muted-foreground">
                   {isResuming
                     ? `You're picking back up where you left off, with ${history.length} question${history.length === 1 ? "" : "s"} already answered. The interviewer will re-ask the current question.`
                     : "This interview is a real spoken conversation: your mic drives it, and the interviewer talks back. Nothing is uploaded except your answers."}
                 </p>
-                <Button onClick={begin} size="lg" className="studio-glow gap-2">
+                <Button onClick={begin} size="lg" className="studio-glow gap-2 rounded-full px-8 h-12">
                   <Mic className="size-4" />
                   {isResuming ? "Resume interview" : "Start interview"}
                 </Button>
               </div>
             ) : completed ? (
               phase === "done" && (
-                <Card className="studio-panel studio-glow w-full shrink-0">
-                  <CardContent className="flex flex-col items-center gap-3 p-4 text-center">
-                    <p className="font-medium">Interview complete</p>
-                    <Button
-                      render={
-                        <Link href={`/interview/${interviewId}/report`} />
-                      }
-                      className="studio-glow gap-2"
-                    >
-                      <Award className="size-4" />
-                      View report
-                    </Button>
-                  </CardContent>
-                </Card>
+                <div className="flex flex-col items-center gap-4 py-6">
+                  <p className="font-medium text-lg">Interview complete</p>
+                  <Button
+                    render={
+                      <Link href={`/interview/${interviewId}/report`} />
+                    }
+                    className="studio-glow gap-2 rounded-full px-8 h-12"
+                  >
+                    <Award className="size-4" />
+                    View report
+                  </Button>
+                </div>
               )
             ) : (
-              <div className="flex shrink-0 flex-col gap-3">
-                <div className="flex flex-col items-start gap-2">
-                  <span className="flex items-center gap-2 font-mono text-[0.68rem] tracking-[0.12em] text-muted-foreground uppercase">
+              <div className="flex w-full flex-col items-center text-center gap-6">
+                <div className="flex flex-col items-center gap-3 min-h-[5rem]">
+                  <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-muted-foreground uppercase font-semibold">
                     {phase === "thinking" && (
                       <Loader2 className="size-3 animate-spin" />
                     )}
-                    {phase === "thinking" ? "Thinking" : "Question"}
+                    {phase === "thinking" ? "Thinking" : "Interviewer"}
                   </span>
                   <motion.p
                     key={displayText}
-                    initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                    initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.35 }}
-                    className="font-serif text-xl text-balance"
+                    transition={{ duration: 0.4 }}
+                    className="font-serif text-2xl text-balance font-medium leading-relaxed"
                   >
                     {displayText}
                   </motion.p>
                 </div>
 
-                {answerBlock}
+                {phase === "listening" && liveTranscript && (
+                  <motion.p 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    className="text-base text-muted-foreground italic font-medium mt-2 max-w-2xl"
+                  >
+                    “{liveTranscript}”
+                  </motion.p>
+                )}
 
-                {/* Fixed width so the label swap between phases (different
-                    pixel widths for "Submit answer" / "Speaking…" /
-                    "Thinking…") never shifts anything around it. */}
                 <Button
                   onClick={submitAnswer}
                   disabled={phase !== "listening"}
@@ -870,8 +820,8 @@ export function VoiceChat({
                   variant={phase === "listening" ? "default" : "secondary"}
                   className={
                     phase === "listening"
-                      ? "studio-glow w-full sm:w-96 justify-center gap-4 bg-red-500 hover:bg-red-600 text-white animate-pulse h-16"
-                      : "w-full sm:w-96 justify-center gap-4 h-16 opacity-80"
+                      ? "studio-glow w-full sm:w-96 justify-center gap-4 bg-red-500 hover:bg-red-600 text-white animate-pulse h-16 rounded-full transition-all"
+                      : "w-full sm:w-96 justify-center gap-4 h-16 opacity-80 rounded-full transition-all"
                   }
                 >
                   {phase === "listening" ? (
@@ -881,8 +831,8 @@ export function VoiceChat({
                         <span className="font-bold text-[1rem]">
                           Microphone is ON
                         </span>
-                        <span className="text-xs opacity-90 font-normal">
-                          Speak your answer, then click here to submit
+                        <span className="text-xs opacity-90 font-medium">
+                          Speak your answer
                         </span>
                       </div>
                     </>
@@ -893,7 +843,7 @@ export function VoiceChat({
                         <span className="font-bold text-[1rem]">
                           Interviewer is speaking...
                         </span>
-                        <span className="text-xs opacity-90 font-normal">
+                        <span className="text-xs opacity-90 font-medium">
                           Please listen
                         </span>
                       </div>
@@ -905,7 +855,7 @@ export function VoiceChat({
                         <span className="font-bold text-[1rem]">
                           Interviewer is thinking...
                         </span>
-                        <span className="text-xs opacity-90 font-normal">
+                        <span className="text-xs opacity-90 font-medium">
                           Generating the next question
                         </span>
                       </div>
@@ -914,8 +864,6 @@ export function VoiceChat({
                 </Button>
               </div>
             )}
-
-            {started && !completed && transcriptRail}
           </div>
         </div>
       )}
