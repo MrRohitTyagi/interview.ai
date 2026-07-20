@@ -6,30 +6,29 @@ import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 // Only ever rendered for cancelled (abandoned) interviews — the API route
 // itself also enforces this, so there's no path to deleting a completed
 // interview's report or an active session out from under someone.
 export function DeleteInterviewButton({ interviewId }: { interviewId: string }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  async function handleConfirm() {
+  async function handleConfirm(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
     setDeleting(true);
     try {
       const res = await fetch(`/api/interviews/${interviewId}`, { method: "DELETE" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to delete interview");
-      setOpen(false);
+      const text = await res.text();
+      let data: any = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (e) {}
+      }
+      if (!res.ok) throw new Error(data?.error ?? "Failed to delete interview");
+      toast.success("Interview deleted");
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete interview");
@@ -39,40 +38,15 @@ export function DeleteInterviewButton({ interviewId }: { interviewId: string }) 
   }
 
   return (
-    <>
-      <Button
-        variant="destructive"
-        size="sm"
-        className="gap-1.5"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setOpen(true);
-        }}
-      >
-        <Trash2 className="size-3.5" />
-        Delete
-      </Button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete this interview?</DialogTitle>
-            <DialogDescription>
-              This removes it from your history for good — there&apos;s no undo.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="items-center sm:justify-between">
-            <Button variant="secondary" onClick={() => setOpen(false)}>
-              Keep it
-            </Button>
-            <Button variant="destructive" onClick={handleConfirm} disabled={deleting} className="gap-2">
-              {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-              {deleting ? "Deleting…" : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+    <Button
+      variant="destructive"
+      size="sm"
+      className="gap-1.5"
+      onClick={handleConfirm}
+      disabled={deleting}
+    >
+      {deleting ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+      {deleting ? "Deleting…" : "Delete"}
+    </Button>
   );
 }

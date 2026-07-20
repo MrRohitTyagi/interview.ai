@@ -282,6 +282,8 @@ export function VoiceChat({
     phaseRef.current = phase;
   }, [phase]);
 
+  const currentSpokenTextRef = useRef<string>("");
+
   const completedRef = useRef<boolean>(completed);
   useEffect(() => {
     completedRef.current = completed;
@@ -371,7 +373,16 @@ export function VoiceChat({
   }
 
   async function submitAnswer() {
-    // This is handled automatically by Gemini now!
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
+        JSON.stringify({
+          clientContent: {
+            turnComplete: true,
+          },
+        })
+      );
+      setPhase("thinking");
+    }
   }
 
   async function begin() {
@@ -403,18 +414,16 @@ export function VoiceChat({
       socketRef.current = ws;
 
       ws.onopen = () => {
-        const dynamicInstruction =
-          `You are a professional, warm AI interviewer named John conducting a ${durationMinutes}-minute ${interviewType} interview.\n` +
-          `Candidate Name: ${candidateName}\n` +
-          `Resume: ${JSON.stringify(resume)}\n` +
-          `Job Description: ${JSON.stringify(jd)}\n` +
-          `Interview Plan: ${JSON.stringify(plan)}\n\n` +
-          `INSTRUCTIONS:\n` +
-          `1. Act naturally, keep questions short and conversational.\n` +
-          `2. When the user stops speaking, briefly react and ask the next question or follow-up.\n` +
-          `3. NEVER use placeholders or markdown.\n` +
-          `4. Move through the planned topics sequentially. You may ask 1-2 follow ups per topic before moving on.\n` +
-          `5. Use the record_turn tool AFTER EVERY question you ask to log what you just said and the topic.`;
+        const dynamicInstruction = 
+          `You are John, an AI interviewer. You are conducting a voice call.\n` +
+          `Candidate: ${candidateName}\n` +
+          `Role/Topics: ${interviewType}\n` +
+          `Plan: ${JSON.stringify(plan)}\n\n` +
+          `CRITICAL RULES:\n` +
+          `1. You are speaking directly to the candidate. Start by introducing yourself and asking the first question.\n` +
+          `2. NEVER output any thoughts, reasoning, planning, or markdown. Output ONLY the exact spoken words.\n` +
+          `3. Keep responses conversational and brief.\n` +
+          `4. If the candidate answers poorly, correct them briefly and move to the next question.`;
 
         const setupMsg = {
           setup: {
@@ -433,24 +442,6 @@ export function VoiceChat({
             systemInstruction: {
               parts: [{ text: dynamicInstruction }],
             },
-            tools: [
-              {
-                functionDeclarations: [
-                  {
-                    name: "record_turn",
-                    description: "Records the question you just asked.",
-                    parameters: {
-                      type: "OBJECT",
-                      properties: {
-                        nextQuestion: { type: "STRING" },
-                        topic: { type: "STRING" },
-                      },
-                      required: ["nextQuestion", "topic"],
-                    },
-                  },
-                ],
-              },
-            ],
           },
         };
         ws.send(JSON.stringify(setupMsg));
@@ -480,65 +471,28 @@ export function VoiceChat({
             console.log("Gemini Live setup complete acknowledgment received");
             const last =
               transcriptRef.current[transcriptRef.current.length - 1];
-            const initialQuestionText =
-              last && last.answer === null
-                ? last.question
-                : initialTranscript[0]?.question;
             const isResuming = history.length > 0;
+            const startPrompt = isResuming 
+              ? "We are resuming the interview. Please continue from where we left off."
+              : "Hello John, I am ready for my interview. Please begin.";
 
-            if (initialQuestionText) {
-              const textToRead = isResuming
-                ? initialQuestionText
-                : `Hi ${candidateName}! I'm John, and I'll be conducting your interview today. Let's get started. ${initialQuestionText}`;
-              const speakMsg = {
-                clientContent: {
-                  turns: [
-                    {
-                      role: "user",
-                      parts: [
-                        {
-                          text:
-                            "Please read this text exactly as written: " +
-                            textToRead,
-                        },
-                      ],
-                    },
-                  ],
-                  turnComplete: true,
-                },
-              };
-              ws.send(JSON.stringify(speakMsg));
-              setPhase("speaking");
-            } else {
-              setPhase("listening");
-              startListening();
-            }
-            return;
-          }
-
-          const toolCall = msg.toolCall || msg.tool_call;
-          if (toolCall) {
-            const call =
-              toolCall.functionCalls?.[0] || toolCall.function_calls?.[0];
-            if (call && call.name === "record_turn") {
-              const args = call.args;
-              syncTurnToBackend(args.nextQuestion, liveTranscript, args.topic);
-              setLiveTranscript("");
-
-              ws.send(
-                JSON.stringify({
-                  toolResponse: {
-                    functionResponses: [
+            const speakMsg = {
+              clientContent: {
+                turns: [
+                  {
+                    role: "user",
+                    parts: [
                       {
-                        id: call.id,
-                        name: call.name,
-                        response: { status: "success" },
+                        text: startPrompt,
                       },
                     ],
                   },
-                }),
-              );
-            }
+                ],
+                turnComplete: true,
+              },
+            };
+            ws.send(JSON.stringify(speakMsg));
+            setPhase("speaking");
             return;
           }
 
@@ -554,6 +508,10 @@ export function VoiceChat({
                   audioPlayerRef.current?.playChunk(inlineData.data);
                   if (phaseRef.current !== "speaking") setPhase("speaking");
                 }
+                const text = part.text;
+                if (text) {
+                  currentSpokenTextRef.current += text;
+                }
               }
             }
 
@@ -565,6 +523,13 @@ export function VoiceChat({
             }
 
             if (serverContent.turnComplete || serverContent.turn_complete) {
+              const spokenText = currentSpokenTextRef.current.trim();
+              if (spokenText) {
+                syncTurnToBackend(spokenText, liveTranscript, transcriptRef.current[transcriptRef.current.length - 1]?.topic ?? "");
+                setLiveTranscript("");
+                currentSpokenTextRef.current = "";
+              }
+
               const checkPlaying = setInterval(() => {
                 if (!audioPlayerRef.current?.getIsPlaying()) {
                   clearInterval(checkPlaying);
@@ -719,8 +684,8 @@ export function VoiceChat({
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-8 lg:overflow-hidden w-full max-w-5xl mx-auto">
           {/* Top row: Video Call Layout */}
-          <div className="flex w-full flex-col sm:flex-row gap-4 h-[40vh] sm:h-[50vh]">
-            <div className="flex-1 flex items-center justify-center rounded-2xl overflow-hidden bg-black/5 ring-1 ring-border shadow-inner relative">
+          <div className="flex w-full flex-col sm:flex-row gap-6 justify-center items-center py-4">
+            <div className="w-64 h-64 sm:w-[22rem] sm:h-[22rem] flex items-center justify-center rounded-3xl overflow-hidden bg-black/5 ring-1 ring-border shadow-sm relative shrink-0">
                <CameraPanel
                  interviewId={interviewId}
                  active={phase === "listening"}
@@ -728,7 +693,7 @@ export function VoiceChat({
                />
             </div>
             
-            <div className="flex-1 flex flex-col items-center justify-center rounded-2xl overflow-hidden bg-black/5 ring-1 ring-border shadow-inner relative">
+            <div className="w-64 h-64 sm:w-[22rem] sm:h-[22rem] flex flex-col items-center justify-center rounded-3xl overflow-hidden bg-black/5 ring-1 ring-border shadow-sm relative shrink-0">
                <div className={tileFrameClassName(phase === "speaking", "fill")}>
                  <InterviewerAvatar active={phase === "speaking"} />
                  <span className={tileLabelClassName}>
@@ -797,7 +762,7 @@ export function VoiceChat({
                     initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4 }}
-                    className="font-serif text-2xl text-balance font-medium leading-relaxed"
+                    className="font-serif text-xl text-balance font-medium leading-relaxed"
                   >
                     {displayText}
                   </motion.p>
@@ -832,7 +797,7 @@ export function VoiceChat({
                           Microphone is ON
                         </span>
                         <span className="text-xs opacity-90 font-medium">
-                          Speak your answer
+                          Speak your answer, then click to submit
                         </span>
                       </div>
                     </>
